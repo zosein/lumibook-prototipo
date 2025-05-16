@@ -37,20 +37,20 @@ O aplicativo estará disponível em http://localhost:3000
 ### Estrutura do Projeto
 
 src/
-├── components/ # Componentes reutilizáveis
-│ ├── BookDetails.jsx
-│ ├── Header.jsx
-│ ├── HomeContent.jsx
-│ ├── NavigationBar.jsx
-│ ├── ResultList.jsx
-│ └── SearchBar.jsx
-├── data/ # Dados de exemplo
-│ └── sampleData.js
-├── pages/ # Páginas da aplicação(ainda com páginas a fazer, ex: login, cadastro, etc)
-│ ├── DetailsPage.jsx
-│ ├── HomePage.jsx
-│ └── SearchResultsPage.jsx
-└── App.jsx # Componente principal
+├── components/        # Componentes reutilizáveis
+│   ├── BookDetails.jsx
+│   ├── Header.jsx
+│   ├── HomeContent.jsx
+│   ├── NavigationBar.jsx
+│   ├── ResultList.jsx
+│   └── SearchBar.jsx
+├── data/             # Dados de exemplo
+│   └── sampleData.js
+├── pages/            # Páginas da aplicação
+│   ├── DetailsPage.jsx
+│   ├── HomePage.jsx
+│   └── SearchResultsPage.jsx
+└── App.jsx           # Componente principal
 
 ## Licença
 
