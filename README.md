@@ -21,36 +21,35 @@ LumiBook é uma aplicação web para sistemas de biblioteca, permitindo buscar, 
 
 Clone o repositório e instale as dependências:
 
-git clone [url-do-repositorio]
-cd lumibook-prototipo
-npm install
-npm install lucide
+- git clone github.com/zosein/lumibook-prototipo
+- npm install
+- npm install lucide
 
 ### Executando o Projeto
 
-npm run build - otimiza o app para a produção
-npm test - executa os testes
-npm start - inicia o servidor de desenvolvimento
+- npm run build - otimiza o app para a produção
+- npm test - executa os testes
+- npm start - inicia o servidor de desenvolvimento
 
 O aplicativo estará disponível em http://localhost:3000
 
 ### Estrutura do Projeto
 
 src/
-├── components/        # Componentes reutilizáveis
-│   ├── BookDetails.jsx
-│   ├── Header.jsx
-│   ├── HomeContent.jsx
-│   ├── NavigationBar.jsx
-│   ├── ResultList.jsx
-│   └── SearchBar.jsx
-├── data/             # Dados de exemplo
-│   └── sampleData.js
-├── pages/            # Páginas da aplicação
-│   ├── DetailsPage.jsx
-│   ├── HomePage.jsx
-│   └── SearchResultsPage.jsx
-└── App.jsx           # Componente principal
+├── components/
+│ ├── Header.jsx # Cabeçalho da aplicação
+│ ├── SearchBar.jsx # Barra de pesquisa com filtros
+│ ├── NavigationBar.jsx # Barra de navegação inferior
+│ ├── HomeContent.jsx # Conteúdo da página inicial
+│ ├── ResultList.jsx # Lista de resultados de pesquisa
+│ └── BookDetails.jsx # Detalhes do livro
+├── data/
+│ └── sampleData.js # Dados de exemplo para a aplicação
+├── pages/
+│ ├── HomePage.jsx # Página inicial
+│ ├── SearchResultsPage.jsx # Página de resultados de pesquisa
+│ └── DetailsPage.jsx # Página de detalhes do livro
+└── App.jsx # Componente principal da aplicação
 
 ## Licença
 
