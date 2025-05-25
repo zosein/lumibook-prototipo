@@ -2,6 +2,8 @@ import { useState } from 'react';
 import HomePage from './pages/HomePage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import DetailsPage from './pages/DetailsPage';
+import RegisterPage from './pages/RegisterPage';
+import LoginPage from './pages/LoginPage';
 import Header from './components/Header';
 import SearchBar from './components/SearchBar';
 import NavigationBar from './components/NavigationBar';
@@ -9,10 +11,15 @@ import NavigationBar from './components/NavigationBar';
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
-  const [lastSearchQuery, setLastSearchQuery] = useState(''); // Nova state para a última busca executada
+  const [lastSearchQuery, setLastSearchQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedBookId, setSelectedBookId] = useState(null);
   const [isSearchTriggered, setIsSearchTriggered] = useState(false);
+  
+  // Estados de autenticação
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  
   const [advancedFilters, setAdvancedFilters] = useState({
     materialType: 'Todos',
     publicationYear: 'Todos',
@@ -21,7 +28,7 @@ export default function App() {
   });
   
   const handleSearch = () => {
-    setLastSearchQuery(searchQuery); // Captura o termo atual da busca
+    setLastSearchQuery(searchQuery);
     setIsSearchTriggered(true);
     setCurrentPage('resultados');
   };
@@ -31,13 +38,31 @@ export default function App() {
     setCurrentPage('detalhes');
   };
 
-  // Função para resetar a pesquisa quando navegar para outras páginas
   const handlePageChange = (page) => {
     if (page !== 'resultados') {
       setIsSearchTriggered(false);
-      setLastSearchQuery(''); // Limpa a última busca ao sair da página de resultados
+      setLastSearchQuery('');
     }
     setCurrentPage(page);
+  };
+
+  // Função para fazer login
+  const handleLogin = (userData) => {
+    setIsLoggedIn(true);
+    setUser(userData);
+    setCurrentPage('home');
+  };
+
+  // Função para fazer logout
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUser(null);
+    setCurrentPage('home');
+  };
+
+  // Função para redirecionar após cadastro
+  const handleRegisterSuccess = () => {
+    setCurrentPage('login');
   };
 
   const renderPage = () => {
@@ -52,8 +77,8 @@ export default function App() {
           return (
             <SearchResultsPage
               setCurrentPage={handlePageChange}
-              searchQuery={lastSearchQuery} // Passa a última busca executada
-              currentInputQuery={searchQuery} // Passa o valor atual do input
+              searchQuery={lastSearchQuery}
+              currentInputQuery={searchQuery}
               advancedFilters={advancedFilters}
               navigateToDetails={navigateToDetails}
               isSearchTriggered={isSearchTriggered}
@@ -63,6 +88,16 @@ export default function App() {
           return <DetailsPage 
                     setCurrentPage={handlePageChange} 
                     bookId={selectedBookId} 
+                  />;
+        case 'cadastro':
+          return <RegisterPage 
+                    setCurrentPage={handlePageChange} 
+                    onRegisterSuccess={handleRegisterSuccess}
+                  />;
+        case 'login':
+          return <LoginPage 
+                    setCurrentPage={handlePageChange}
+                    onLogin={handleLogin}
                   />;
         default:
           return <HomePage 
@@ -76,22 +111,36 @@ export default function App() {
     }
   };
 
+  // Verificar se deve mostrar Header, SearchBar e NavigationBar
+  const showHeaderAndComponents = !['login', 'cadastro'].includes(currentPage);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <Header />
-      <SearchBar 
-        searchQuery={searchQuery} 
-        setSearchQuery={setSearchQuery}
-        filterOpen={filterOpen}
-        setFilterOpen={setFilterOpen}
-        advancedFilters={advancedFilters}
-        setAdvancedFilters={setAdvancedFilters}
-        handleSearch={handleSearch}
-      />
+      {showHeaderAndComponents && (
+        <Header 
+          setCurrentPage={handlePageChange} 
+          isLoggedIn={isLoggedIn}
+          user={user}
+          onLogout={handleLogout}
+        />
+      )}
+      {showHeaderAndComponents && (
+        <SearchBar 
+          searchQuery={searchQuery} 
+          setSearchQuery={setSearchQuery}
+          filterOpen={filterOpen}
+          setFilterOpen={setFilterOpen}
+          advancedFilters={advancedFilters}
+          setAdvancedFilters={setAdvancedFilters}
+          handleSearch={handleSearch}
+        />
+      )}
       <div className="flex-1 overflow-auto">
         {renderPage()}
       </div>
-      <NavigationBar currentPage={currentPage} setCurrentPage={handlePageChange} />
+      {showHeaderAndComponents && (
+        <NavigationBar currentPage={currentPage} setCurrentPage={handlePageChange} />
+      )}
     </div>
   );
 }
