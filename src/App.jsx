@@ -9,8 +9,10 @@ import NavigationBar from './components/NavigationBar';
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastSearchQuery, setLastSearchQuery] = useState(''); // Nova state para a última busca executada
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedBookId, setSelectedBookId] = useState(null);
+  const [isSearchTriggered, setIsSearchTriggered] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState({
     materialType: 'Todos',
     publicationYear: 'Todos',
@@ -18,16 +20,24 @@ export default function App() {
     availability: 'Todos'
   });
   
-  
   const handleSearch = () => {
-    
+    setLastSearchQuery(searchQuery); // Captura o termo atual da busca
+    setIsSearchTriggered(true);
     setCurrentPage('resultados');
   };
-
   
   const navigateToDetails = (bookId) => {
     setSelectedBookId(bookId);
     setCurrentPage('detalhes');
+  };
+
+  // Função para resetar a pesquisa quando navegar para outras páginas
+  const handlePageChange = (page) => {
+    if (page !== 'resultados') {
+      setIsSearchTriggered(false);
+      setLastSearchQuery(''); // Limpa a última busca ao sair da página de resultados
+    }
+    setCurrentPage(page);
   };
 
   const renderPage = () => {
@@ -35,26 +45,28 @@ export default function App() {
       switch (currentPage) {
         case 'home':
           return <HomePage 
-                    setCurrentPage={setCurrentPage} 
+                    setCurrentPage={handlePageChange} 
                     navigateToDetails={navigateToDetails} 
                   />;
         case 'resultados':
           return (
             <SearchResultsPage
-              setCurrentPage={setCurrentPage}
-              searchQuery={searchQuery}
+              setCurrentPage={handlePageChange}
+              searchQuery={lastSearchQuery} // Passa a última busca executada
+              currentInputQuery={searchQuery} // Passa o valor atual do input
               advancedFilters={advancedFilters}
               navigateToDetails={navigateToDetails}
+              isSearchTriggered={isSearchTriggered}
             />
           );
         case 'detalhes':
           return <DetailsPage 
-                    setCurrentPage={setCurrentPage} 
+                    setCurrentPage={handlePageChange} 
                     bookId={selectedBookId} 
                   />;
         default:
           return <HomePage 
-                    setCurrentPage={setCurrentPage}
+                    setCurrentPage={handlePageChange}
                     navigateToDetails={navigateToDetails} 
                   />;
       }
@@ -79,7 +91,7 @@ export default function App() {
       <div className="flex-1 overflow-auto">
         {renderPage()}
       </div>
-      <NavigationBar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <NavigationBar currentPage={currentPage} setCurrentPage={handlePageChange} />
     </div>
   );
 }

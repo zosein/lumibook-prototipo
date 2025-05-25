@@ -1,4 +1,4 @@
-import { BookMarked } from 'lucide-react';
+import { BookMarked,LockIcon, UserPlus } from 'lucide-react';
 
 export default function Header() {
   return (
@@ -9,8 +9,14 @@ export default function Header() {
           <h1 className="text-xl font-bold">LumiBook</h1>
         </div>
         <div className="flex gap-3">
-          <button className="text-sm bg-blue-600 px-3 py-1 rounded">Entrar</button>
-          <button className="text-sm bg-blue-600 px-3 py-1 rounded">Cadastrar</button>
+          <button className="bg-sky-500 hover:bg-sky-700 px-3 py-1 rounded flex items-center gap-1">
+            <LockIcon size={18} />
+            Entrar
+          </button>
+          <button className="bg-sky-500 hover:bg-sky-700 px-3 py-1 rounded flex items-center gap-1">
+            <UserPlus size={18} />
+            Cadastrar
+          </button>
         </div>
       </div>
     </header>

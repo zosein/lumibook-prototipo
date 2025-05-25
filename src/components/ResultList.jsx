@@ -1,62 +1,88 @@
 import { List, Grid, ChevronDown, BookOpen, AlertCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { resultados } from '../data/sampleData';
 
-export default function ResultList({ setCurrentPage, searchQuery, advancedFilters, navigateToDetails }) {
+export default function ResultList({ 
+  searchQuery, 
+  currentInputQuery, 
+  advancedFilters, 
+  navigateToDetails, 
+  isSearchTriggered 
+}) {
   const [viewMode, setViewMode] = useState('lista');
   const [detailsOpen, setDetailsOpen] = useState(null);
+  const [lastFilters, setLastFilters] = useState(advancedFilters); // Armazena os filtros da última busca
 
-  const filteredResults = resultados.filter(item => {
-    // Filtro de pesquisa
-    const matchesQuery = searchQuery
-      ? item.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.autor.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
+  // Atualiza os filtros armazenados apenas quando uma nova busca é disparada
+  useEffect(() => {
+    if (isSearchTriggered) {
+      setLastFilters(advancedFilters);
+    }
+  }, [isSearchTriggered, advancedFilters]);
 
-    // Filtragem avançada
-    let matchesFilters = true;
-
-    // Tipo de Material
-    if (advancedFilters.materialType !== 'Todos') {
-      matchesFilters =
-        matchesFilters && item.tipo.toLowerCase() === advancedFilters.materialType.toLowerCase();
+  // Usando useMemo para otimizar o cálculo dos resultados filtrados
+  // IMPORTANTE: Agora só depende de searchQuery (última busca) e lastFilters, não do input atual
+  const filteredResults = useMemo(() => {
+    if (!isSearchTriggered) {
+      return [];
     }
 
-    // Ano de Publicação
-    if (advancedFilters.publicationYear !== 'Todos') {
-      const currentYear = new Date().getFullYear();
-      const itemYear = parseInt(item.ano, 10);
-      if (advancedFilters.publicationYear === 'Últimos 5 anos') {
-        matchesFilters = matchesFilters && itemYear >= currentYear - 5;
-      } else if (advancedFilters.publicationYear === 'Últimos 10 anos') {
-        matchesFilters = matchesFilters && itemYear >= currentYear - 10;
+    return resultados.filter(item => {
+      // Filtro de pesquisa usando apenas o termo da última busca executada
+      const matchesQuery = searchQuery
+        ? item.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.autor.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+
+      // Filtragem avançada usando os filtros da última busca
+      let matchesFilters = true;
+
+      // Tipo de Material
+      if (lastFilters.materialType !== 'Todos') {
+        matchesFilters =
+          matchesFilters && item.tipo.toLowerCase() === lastFilters.materialType.toLowerCase();
       }
-     
-    }
 
-    // Idioma assumindo que os itens estão "Português"
-    if (advancedFilters.language !== 'Todos') {
-      matchesFilters = matchesFilters && advancedFilters.language === 'Português';
-    }
-
-    // Disponibilidade
-    if (advancedFilters.availability !== 'Todos') {
-      if (advancedFilters.availability === 'Disponível') {
-        matchesFilters = matchesFilters && item.disponivel;
-      } else if (advancedFilters.availability === 'Emprestado') {
-        matchesFilters = matchesFilters && !item.disponivel;
+      // Ano de Publicação
+      if (lastFilters.publicationYear !== 'Todos') {
+        const currentYear = new Date().getFullYear();
+        const itemYear = parseInt(item.ano, 10);
+        if (lastFilters.publicationYear === 'Últimos 5 anos') {
+          matchesFilters = matchesFilters && itemYear >= currentYear - 5;
+        } else if (lastFilters.publicationYear === 'Últimos 10 anos') {
+          matchesFilters = matchesFilters && itemYear >= currentYear - 10;
+        }
       }
-    }
 
-    return matchesQuery && matchesFilters;
-  });
+      // Idioma
+      if (lastFilters.language !== 'Todos') {
+        matchesFilters = matchesFilters && lastFilters.language === 'Português';
+      }
+
+      // Disponibilidade
+      if (lastFilters.availability !== 'Todos') {
+        if (lastFilters.availability === 'Disponível') {
+          matchesFilters = matchesFilters && item.disponivel;
+        } else if (lastFilters.availability === 'Emprestado') {
+          matchesFilters = matchesFilters && !item.disponivel;
+        }
+      }
+
+      return matchesQuery && matchesFilters;
+    });
+  }, [searchQuery, lastFilters, isSearchTriggered]); // Removido currentInputQuery das dependências
+
+  // Reset dos detalhes expandidos quando os resultados mudam
+  useEffect(() => {
+    setDetailsOpen(null);
+  }, [filteredResults]);
 
   return (
     <div className="p-4">
       <div className="mb-4 flex justify-between items-center">
         <h2 className="text-lg font-medium">
           Resultados da Pesquisa
-          {searchQuery && (
+          {searchQuery && isSearchTriggered && (
             <span className="text-sm font-normal ml-2 text-gray-600">
               para "{searchQuery}"
             </span>
@@ -78,7 +104,15 @@ export default function ResultList({ setCurrentPage, searchQuery, advancedFilter
         </div>
       </div>
 
-      {filteredResults.length === 0 ? (
+      {!isSearchTriggered ? (
+        <div className="bg-white border border-gray-200 rounded-md p-8 text-center">
+          <BookOpen size={40} className="mx-auto mb-2 text-gray-400" />
+          <p className="font-medium text-gray-600">Faça uma pesquisa</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Digite sua busca e pressione Enter ou clique no ícone de pesquisa
+          </p>
+        </div>
+      ) : filteredResults.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-md p-8 text-center">
           <AlertCircle size={40} className="mx-auto mb-2 text-gray-400" />
           <p className="font-medium text-gray-600">Nenhum resultado encontrado</p>
@@ -149,7 +183,7 @@ export default function ResultList({ setCurrentPage, searchQuery, advancedFilter
           {filteredResults.map((item) => (
             <div 
               key={item.id} 
-              className="bg-white border border-gray-200 rounded-md p-3 hover:shadow-md"
+              className="bg-white border border-gray-200 rounded-md p-3 hover:shadow-md cursor-pointer"
               onClick={() => navigateToDetails(item.id)}
             >
               <div className="flex justify-center mb-2">

@@ -14,9 +14,22 @@ export default function SearchBar({ searchQuery, setSearchQuery, filterOpen, set
     });
   };
 
+  // Função para lidar com a submissão do formulário (quando Enter é pressionado)
   const handleSubmit = (e) => {
     e.preventDefault();
     handleSearch();
+  };
+
+  // Função para lidar com o clique no botão de pesquisa
+  const handleSearchClick = () => {
+    handleSearch();
+  };
+
+  // Função para lidar com a tecla pressionada no campo de pesquisa
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   return (
@@ -29,10 +42,12 @@ export default function SearchBar({ searchQuery, setSearchQuery, filterOpen, set
             className="p-2 flex-1 outline-none"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={handleKeyPress}
           />
           <button 
-            type="submit"
+            type="button" // Mudado para type="button" para não submeter o form automaticamente
             className="bg-blue-600 text-white px-4 flex items-center"
+            onClick={handleSearchClick}
           >
             <Search size={18} />
           </button>
