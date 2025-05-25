@@ -1,20 +1,11 @@
 import { useState } from 'react';
 import { BookOpen, Eye, EyeOff, User, Mail, Phone, Loader2, ArrowLeft, Check, X } from 'lucide-react';
+import { validateRegister, validators } from '../utils/Validation';
 
 const USER_ROLES = [
   { value: 'aluno', label: 'Aluno' },
   { value: 'professor', label: 'Professor' },
 ];
-
-function isEmailInstitucional(email) {
-  return /@universitas\.edu\.br\s*$/i.test(email);
-}
-function isTelefoneValido(tel) {
-  return /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/.test(tel);
-}
-function isSenhaForte(senha) {
-  return senha.length >= 8 && /[A-Z]/.test(senha) && /[0-9]/.test(senha);
-}
 
 export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
   const [form, setForm] = useState({
@@ -34,13 +25,10 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
     const errs = {};
     if (!form.nome) errs.nome = "Informe seu nome completo.";
     if (!form.email) errs.email = "Informe o email institucional.";
-    else if (!isEmailInstitucional(form.email)) errs.email = "Use somente email institucional (@universitas.edu.br).";
     if (!form.telefone) errs.telefone = "Informe o telefone.";
-    else if (!isTelefoneValido(form.telefone)) errs.telefone = "Telefone inválido. Use formato (XX) XXXXX-XXXX.";
     if (!form.papel) errs.papel = "Selecione seu papel.";
     if (form.papel === "professor" && !form.matricula) errs.matricula = "Informe a matrícula do professor.";
     if (!form.senha) errs.senha = "Informe uma senha.";
-    else if (!isSenhaForte(form.senha)) errs.senha = "Senha fraca. Use 8+ caracteres, 1 letra maiúscula e 1 número.";
     return errs;
   }
 
@@ -51,8 +39,9 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
     setSuccess('');
   };
 
-  const handleBlur = e => {
-    setErrors(prev => ({ ...prev, ...validate() }));
+  const handleBlur = () => {
+    const validationErrors = validateRegister(form);
+    setErrors(prev => ({ ...prev, ...validationErrors }));
   };
 
   const handleSubmit = async e => {
@@ -80,15 +69,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
   };
 
   // Indicadores de força da senha
-  const getPasswordStrength = () => {
-    const senha = form.senha;
-    const checks = [
-      { test: senha.length >= 8, label: "Mínimo 8 caracteres" },
-      { test: /[A-Z]/.test(senha), label: "Uma letra maiúscula" },
-      { test: /[0-9]/.test(senha), label: "Um número" },
-    ];
-    return checks;
-  };
+  const getPasswordStrength = () => validators.getPasswordStrength(form.senha);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50">

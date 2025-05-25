@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { BookOpen, Eye, EyeOff, Mail, Hash, Loader2, ArrowLeft } from 'lucide-react';
-
-function isEmailInstitucional(email) {
-  return /@universitas\.edu\.br\s*$/i.test(email);
-}
-function isMatricula(valor) {
-  return /^\d{6,}$/.test(valor);
-}
+import { validateLogin } from '../utils/Validation';
 
 export default function LoginPage({ setCurrentPage, onLogin }) {
   const [form, setForm] = useState({ usuario: '', senha: '' });
@@ -14,6 +8,14 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const isEmailInstitucional = (email) => {
+    return email.endsWith('@universitas.edu.br');
+  };
+
+  const isMatricula = (matricula) => {
+    return /^\d{8,}$/.test(matricula);
+  };
 
   function validate() {
     const errs = {};
@@ -31,8 +33,9 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
     setSuccess('');
   };
 
-  const handleBlur = e => {
-    setErrors(prev => ({ ...prev, ...validate() }));
+  const handleBlur = () => {
+    const validationErrors = validateLogin(form);
+    setErrors(prev => ({ ...prev, ...validationErrors }));
   };
 
   const handleSubmit = async e => {
