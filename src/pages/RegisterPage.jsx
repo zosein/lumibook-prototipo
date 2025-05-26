@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Eye, EyeOff, User, Mail, Phone, Loader2, ArrowLeft, Check, X } from 'lucide-react';
+import { BookOpen, Eye, EyeOff, User, Mail, Phone, Loader2, ArrowLeft, Check, X, Hash, AlertCircle } from 'lucide-react';
 import { validateRegister, validators } from '../utils/Validation';
 
 const USER_ROLES = [
@@ -21,22 +21,16 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  function validate() {
-    const errs = {};
-    if (!form.nome) errs.nome = "Informe seu nome completo.";
-    if (!form.email) errs.email = "Informe o email institucional.";
-    if (!form.telefone) errs.telefone = "Informe o telefone.";
-    if (!form.papel) errs.papel = "Selecione seu papel.";
-    if (form.papel === "professor" && !form.matricula) errs.matricula = "Informe a matrícula do professor.";
-    if (!form.senha) errs.senha = "Informe uma senha.";
-    return errs;
-  }
-
   const handleChange = e => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
     setErrors(prev => ({ ...prev, [name]: undefined }));
     setSuccess('');
+    
+    // Limpar matrícula se mudar de aluno para professor
+    if (name === 'papel' && value === 'professor') {
+      setForm(prev => ({ ...prev, matricula: '' }));
+    }
   };
 
   const handleBlur = () => {
@@ -46,42 +40,58 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) {
-      setErrors(errs);
+    const validationErrors = validateRegister(form);
+    
+    if (Object.keys(validationErrors).length) {
+      setErrors(validationErrors);
       setSuccess('');
       return;
     }
+    
     setSubmitting(true);
     setErrors({});
+    
     try {
-      // Simulação de cadastro - chamada para a API
+      // Preparar dados para API - incluir matrícula apenas para alunos
+      const dadosAPI = {
+        nome: form.nome,
+        email: form.email,
+        telefone: form.telefone,
+        papel: form.papel,
+        senha: form.senha,
+        // Matrícula apenas para alunos
+        ...(form.papel === 'aluno' && { matricula: form.matricula })
+      };
+      
+      // Simulação de cadastro - substituir pela chamada real da API
+      console.log('Dados para API (cadastro):', dadosAPI);
       await new Promise(res => setTimeout(res, 1200));
+      
       setSuccess("Cadastro realizado com sucesso! Redirecionando para o login...");
       setTimeout(() => {
-        onRegisterSuccess(); // Redireciona para login
+        onRegisterSuccess();
       }, 1500);
-    } catch {
+      
+    } catch (error) {
       setErrors({ geral: "Erro ao cadastrar. Tente novamente mais tarde." });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Indicadores de força da senha
   const getPasswordStrength = () => validators.getPasswordStrength(form.senha);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 animate-in fade-in duration-300">
       {/* Header simplificado */}
       <div className="w-full h-20 bg-blue-600 flex items-center px-8 shadow-lg">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setCurrentPage('home')}
-            className="flex items-center gap-2 text-white hover:text-blue-200 transition-colors p-2 rounded-lg hover:bg-blue-500"
+            className="flex items-center gap-2 text-white hover:text-blue-200 transition-all duration-200 p-2 rounded-lg hover:bg-blue-500 active:scale-95"
           >
             <ArrowLeft size={20} />
-            <span className="hidden sm:inline">Voltar</span>
+            <span className="hidden sm:inline font-medium">Voltar</span>
           </button>
           <div className="flex items-center gap-2 text-white text-2xl font-bold">
             LUMIBOOK <BookOpen size={28} />
@@ -92,7 +102,6 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
       {/* Container principal */}
       <div className="flex items-center justify-center min-h-[calc(100vh-5rem)] p-4">
         <div className="w-full max-w-md">
-          {/* Card do formulário */}
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
             {/* Header do card */}
             <div className="bg-gradient-to-r from-blue-600 to-sky-600 p-8 text-center">
@@ -221,27 +230,51 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                 {errors.papel && <p className="text-red-500 text-xs">{errors.papel}</p>}
               </div>
 
-              {/* Campo matrícula (condicional) */}
-              {form.papel === 'professor' && (
+              {/* Campo matrícula - APENAS para ALUNOS */}
+              {form.papel === 'aluno' && (
                 <div className="space-y-2 animate-in slide-in-from-top duration-300">
                   <label htmlFor="matricula" className="text-gray-700 text-sm font-medium">
-                    Matrícula do Professor<span className="text-red-500 ml-1">*</span>
+                    Matrícula<span className="text-red-500 ml-1">*</span>
                   </label>
-                  <input
-                    id="matricula"
-                    name="matricula"
-                    value={form.matricula}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`w-full px-4 py-3 border rounded-lg transition-all duration-200 ${
-                      errors.matricula 
-                        ? "border-red-300 focus:border-red-500 focus:ring-red-200" 
-                        : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
-                    } focus:outline-none focus:ring-2`}
-                    placeholder="Digite a matrícula"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      id="matricula"
+                      name="matricula"
+                      value={form.matricula}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`w-full px-4 py-3 pl-10 border rounded-lg transition-all duration-200 ${
+                        errors.matricula 
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-200" 
+                          : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                      } focus:outline-none focus:ring-2`}
+                      placeholder="Digite sua matrícula (mín. 7 números)"
+                      required
+                    />
+                    <Hash size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  </div>
                   {errors.matricula && <p className="text-red-500 text-xs">{errors.matricula}</p>}
+                  {/* NOVA INFORMAÇÃO IMPORTANTE */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-amber-700">
+                      <p className="font-semibold mb-1">⚠️ Importante sobre o login:</p>
+                      <p>Alunos fazem login <strong>APENAS com a matrícula</strong> (não com email). Guarde bem seu número!</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Informação sobre login para professores */}
+              {form.papel === 'professor' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 animate-in slide-in-from-top duration-300">
+                  <div className="flex items-start gap-2">
+                    <Mail size={16} className="text-blue-600 mt-0.5" />
+                    <div className="text-xs text-blue-700">
+                      <p className="font-semibold mb-1">ℹ️ Informação sobre login:</p>
+                      <p>Professores fazem login <strong>APENAS com email institucional</strong> (o mesmo usado no cadastro).</p>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -269,7 +302,8 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200 active:scale-95"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>

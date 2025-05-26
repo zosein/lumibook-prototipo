@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { BookOpen, Eye, EyeOff, Mail, Hash, Loader2, ArrowLeft } from 'lucide-react';
-import { validateLogin } from '../utils/Validation';
+import { useState, useEffect } from 'react';
+import { BookOpen, Eye, EyeOff, Mail, Hash, Loader2, ArrowLeft, AlertCircle, Shield } from 'lucide-react';
+import { validateLogin, validators, getApiErrorMessage } from '../utils/Validation';
 
 export default function LoginPage({ setCurrentPage, onLogin }) {
   const [form, setForm] = useState({ usuario: '', senha: '' });
@@ -9,22 +9,27 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const isEmailInstitucional = (email) => {
-    return email.endsWith('@universitas.edu.br');
+  // Informações sobre o input do usuário
+  const [inputInfo, setInputInfo] = useState(null);
+
+  // Função para obter informações sobre o tipo de input
+  const getInputInfo = (input) => {
+    if (!input?.trim()) return null;
+    
+    try {
+      const tipoInfo = validators.determinarTipoUsuarioLogin(input.trim());
+      return tipoInfo;
+    } catch (error) {
+      console.error('Erro ao determinar tipo de usuário:', error);
+      return null;
+    }
   };
 
-  const isMatricula = (matricula) => {
-    return /^\d{8,}$/.test(matricula);
-  };
-
-  function validate() {
-    const errs = {};
-    if (!form.usuario) errs.usuario = "Informe email institucional ou matrícula.";
-    else if (form.usuario.includes('@') && !isEmailInstitucional(form.usuario)) errs.usuario = "Use seu email institucional.";
-    else if (!form.usuario.includes('@') && !isMatricula(form.usuario)) errs.usuario = "Matrícula inválida.";
-    if (!form.senha) errs.senha = "Informe sua senha.";
-    return errs;
-  }
+  // Efeito para atualizar informações do input
+  useEffect(() => {
+    const info = getInputInfo(form.usuario);
+    setInputInfo(info);
+  }, [form.usuario]);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -40,60 +45,94 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) {
-      setErrors(errs);
+    const validationErrors = validateLogin(form);
+    
+    if (Object.keys(validationErrors).length) {
+      setErrors(validationErrors);
       setSuccess('');
       return;
     }
+    
     setSubmitting(true);
     setErrors({});
+    
     try {
-      // Simulação de login - chamada para a API
-      await new Promise(res => setTimeout(res, 1000));
+      // Determinar tipo de usuário baseado no input (RESTRITIVO)
+      const tipoInfo = validators.determinarTipoUsuarioLogin(form.usuario);
       
-      // Verifica se é email ou matrícula
-      const isEmail = form.usuario.includes('@');
+      if (!tipoInfo) {
+        setErrors({ geral: "Formato de login inválido. Use matrícula (alunos), email institucional (professores) ou admin@universitas.edu.br (administrador)." });
+        return;
+      }
       
-      // Dados simulados do usuário que retornariam da API
-      const userData = {
-        usuario: form.usuario, // Mantém o valor original (email ou matrícula)
-        email: isEmail ? form.usuario : `${form.usuario}@universitas.edu.br`, // Email completo sempre
-        nome: 'Nome do Usuário', // Viria da API
-        papel: 'aluno', // Viria da API
-        tipoLogin: isEmail ? 'email' : 'matricula' // Nova propriedade para identificar o tipo
+      // Preparar dados para API com tipo de usuário determinístico
+      const dadosAPI = {
+        identificador: tipoInfo.identificadorAPI,
+        tipoInput: tipoInfo.tipoInput,
+        tipoUsuarioEsperado: tipoInfo.tipoUsuario,
+        senha: form.senha
       };
       
+      console.log('Dados para API de login:', dadosAPI);
+      await new Promise(res => setTimeout(res, 1000));
+      
+      // Simular resposta da API baseada no tipo de usuário
+      let userData;
+      
+      if (tipoInfo.tipoUsuario === 'admin') {
+        userData = {
+          usuario: form.usuario,
+          nome: 'Bibliotecário Principal',
+          email: form.usuario,
+          papel: 'admin',
+          tipoLogin: 'email',
+          id: 'admin123'
+        };
+        console.log('Login como ADMIN:', userData); // DEBUG
+      } else if (tipoInfo.tipoUsuario === 'aluno') {
+        userData = {
+          usuario: form.usuario,
+          nome: 'João Silva',
+          email: `${form.usuario}@universitas.edu.br`,
+          papel: 'aluno',
+          tipoLogin: 'matricula',
+          matricula: form.usuario,
+          id: 'user123'
+        };
+        console.log('Login como ALUNO:', userData); // DEBUG
+      } else {
+        userData = {
+          usuario: form.usuario,
+          nome: 'Prof. Maria Santos',
+          email: form.usuario,
+          papel: 'professor',
+          tipoLogin: 'email',
+          id: 'prof123'
+        };
+        console.log('Login como PROFESSOR:', userData); // DEBUG
+      }
+      
       setSuccess("Login realizado! Redirecionando...");
-      setTimeout(() => {
-        onLogin(userData); // Passa os dados do usuário para o App
-      }, 1200);
-    } catch {
-      setErrors({ geral: "Erro ao fazer login. Tente novamente." });
+      setTimeout(() => onLogin(userData), 1200);
+      
+    } catch (error) {
+      setErrors({ geral: getApiErrorMessage(error) });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Detectar tipo de input para mostrar ícone apropriado
-  const getInputIcon = () => {
-    if (!form.usuario) return null;
-    return form.usuario.includes('@') ? 
-      <Mail size={16} className="text-blue-500" /> : 
-      <Hash size={16} className="text-green-500" />;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 animate-in fade-in duration-300">
       {/* Header simplificado */}
       <div className="w-full h-20 bg-blue-600 flex items-center px-8 shadow-lg">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setCurrentPage('home')}
-            className="flex items-center gap-2 text-white hover:text-blue-200 transition-colors p-2 rounded-lg hover:bg-blue-500"
+            className="flex items-center gap-2 text-white hover:text-blue-200 transition-all duration-200 p-2 rounded-lg hover:bg-blue-500 active:scale-95"
           >
             <ArrowLeft size={20} />
-            <span className="hidden sm:inline">Voltar</span>
+            <span className="hidden sm:inline font-medium">Voltar</span>
           </button>
           <div className="flex items-center gap-2 text-white text-2xl font-bold">
             LUMIBOOK <BookOpen size={28} />
@@ -104,7 +143,6 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
       {/* Container principal */}
       <div className="flex items-center justify-center min-h-[calc(100vh-5rem)] p-4">
         <div className="w-full max-w-md">
-          {/* Card do formulário */}
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
             {/* Header do card */}
             <div className="bg-gradient-to-r from-blue-600 to-sky-600 p-8 text-center">
@@ -119,7 +157,8 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               {/* Mensagens de feedback */}
               {errors.geral && (
-                <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-center text-sm animate-pulse">
+                <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-center text-sm animate-pulse flex items-center gap-2">
+                  <AlertCircle size={16} />
                   {errors.geral}
                 </div>
               )}
@@ -130,10 +169,29 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
                 </div>
               )}
 
-              {/* Campo usuário com ícone dinâmico */}
+              {/* Informações sobre tipos de login - ATUALIZADA */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+                <h3 className="font-semibold text-blue-900 mb-2">Como fazer login:</h3>
+                <div className="space-y-2 text-blue-700">
+                  <div className="flex items-center gap-2">
+                    <Hash size={14} className="text-green-600" />
+                    <span><strong>Alunos:</strong> Digite apenas sua matrícula</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail size={14} className="text-blue-600" />
+                    <span><strong>Professores:</strong> Digite seu email institucional</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Shield size={14} className="text-red-600" />
+                    <span><strong>Admin:</strong> admin@universitas.edu.br</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Campo usuário */}
               <div className="space-y-2">
                 <label htmlFor="usuario" className="text-gray-700 text-sm font-medium">
-                  Email institucional ou matrícula<span className="text-red-500 ml-1">*</span>
+                  Matrícula ou Email Institucional<span className="text-red-500 ml-1">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -142,24 +200,64 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
                     value={form.usuario}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    className={`w-full px-4 py-3 border rounded-lg transition-all duration-200 ${
+                    className={`w-full px-4 py-3 pr-10 border rounded-lg transition-all duration-200 ${
                       errors.usuario 
                         ? "border-red-300 focus:border-red-500 focus:ring-red-200" 
                         : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
-                    } focus:outline-none focus:ring-2 ${form.usuario ? 'pr-10' : ''}`}
+                    } focus:outline-none focus:ring-2`}
                     placeholder="Digite seu email ou matrícula"
                     required
                   />
-                  {getInputIcon() && (
+                  {inputInfo && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      {getInputIcon()}
+                      {inputInfo.tipoInput === 'email' ? (
+                        <Mail size={16} className="text-blue-500" />
+                      ) : (
+                        <Hash size={16} className="text-green-500" />
+                      )}
                     </div>
                   )}
                 </div>
                 {errors.usuario && <p className="text-red-500 text-xs">{errors.usuario}</p>}
+                
+                {/* Informação sobre o tipo de usuário detectado - ATUALIZADA */}
+                {inputInfo && (
+                  <div className={`border rounded-lg p-3 animate-in slide-in-from-top duration-200 ${
+                    inputInfo.tipoUsuario === 'aluno' 
+                      ? 'bg-green-50 border-green-200' 
+                      : inputInfo.tipoUsuario === 'admin'
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-blue-50 border-blue-200'
+                  }`}>
+                    <p className={`text-xs font-medium flex items-center gap-2 ${
+                      inputInfo.tipoUsuario === 'aluno' 
+                        ? 'text-green-700' 
+                        : inputInfo.tipoUsuario === 'admin'
+                        ? 'text-red-700'
+                        : 'text-blue-700'
+                    }`}>
+                      {inputInfo.tipoUsuario === 'admin' ? (
+                        <>
+                          <Shield size={12} />
+                          <span className="font-semibold">Login como Administrador</span> • Acesso total ao sistema
+                        </>
+                      ) : inputInfo.tipoInput === 'email' ? (
+                        <>
+                          <Mail size={12} />
+                          <span className="font-semibold">Login como Professor</span> • Email institucional detectado
+                        </>
+                      ) : (
+                        <>
+                          <Hash size={12} />
+                          <span className="font-semibold">Login como Aluno</span> • Matrícula detectada
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Campo senha com toggle de visibilidade */}
+              {/* Campo senha */}
               <div className="space-y-2">
                 <label htmlFor="senha" className="text-gray-700 text-sm font-medium">
                   Senha<span className="text-red-500 ml-1">*</span>
@@ -179,11 +277,13 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
                     } focus:outline-none focus:ring-2`}
                     placeholder="Digite sua senha"
                     required
+                    minLength={6}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200 active:scale-95"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>

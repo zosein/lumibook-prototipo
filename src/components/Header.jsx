@@ -2,6 +2,11 @@ import { BookMarked, LockIcon, UserPlus, LogOut, ChevronDown, Mail, Hash, UserCh
 import { useState, useRef, useEffect } from 'react';
 
 export default function Header({ setCurrentPage, isLoggedIn, user, onLogout }) {
+  // DEBUG: Log do usuário atual
+  useEffect(() => {
+    console.log('Header - Usuario logado:', { isLoggedIn, user });
+  }, [isLoggedIn, user]);
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 

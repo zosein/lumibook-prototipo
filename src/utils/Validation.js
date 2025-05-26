@@ -1,299 +1,319 @@
-// Regras de validação centralizadas
-export const VALIDATION_RULES = {
+// Constantes de validação
+const VALIDATION_RULES = {
+  EMAIL: {
+    PATTERN: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+    INSTITUTIONAL_PATTERN: /^[a-zA-Z0-9._%+-]+@universitas\.edu\.br$/,
+    INSTITUTIONAL_DOMAIN: '@universitas.edu.br'
+  },
+  
+  // NOVO: Email específico para admin
+  ADMIN_EMAIL: {
+    PATTERN: /^admin@universitas\.edu\.br$/,
+    DOMAIN: '@universitas.edu.br'
+  },
+
   MATRICULA: {
+    PATTERN: /^\d{7,}$/,
     MIN_LENGTH: 7,
-    PATTERN: /^\d{7,}$/ // Mínimo 7 números (atualizado)
+    MAX_LENGTH: 15
   },
+
   SENHA: {
-    MIN_LENGTH: 6, // Atualizado para 6 caracteres
-    PATTERN: /^(?=.*[A-Z])(?=.*\d).{6,}$/ // Mín 6 chars, 1 maiúscula, 1 número
+    MIN_LENGTH: 8,
+    REQUIRE_UPPERCASE: true,
+    REQUIRE_LOWERCASE: true,
+    REQUIRE_NUMBER: true,
+    REQUIRE_SPECIAL: true,
+    SPECIAL_CHARS: /[!@#$%^&*(),.?":{}|<>]/
   },
-  EMAIL_INSTITUCIONAL: {
-    PATTERN: /@universitas\.edu\.br\s*$/i
-  },
-  TELEFONE: {
-    PATTERN: /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/
-  },
+
   NOME: {
     MIN_LENGTH: 2,
-    PATTERN: /^[a-zA-ZÀ-ÿ\s]{2,}$/ // Apenas letras e espaços, mín 2 caracteres
+    MAX_LENGTH: 100,
+    PATTERN: /^[a-zA-ZÀ-ÿ\s]+$/
   }
 };
 
-// Validadores específicos
+// Objeto validators com todas as funções
 export const validators = {
-  // Validar email institucional (usando a função existente)
+  // Validação de email geral
+  isEmailValido: (email) => {
+    if (!email) return false;
+    return VALIDATION_RULES.EMAIL.PATTERN.test(email);
+  },
+
+  // Validação de email institucional para professores
   isEmailInstitucional: (email) => {
     if (!email) return false;
-    return VALIDATION_RULES.EMAIL_INSTITUCIONAL.PATTERN.test(email);
+    return VALIDATION_RULES.EMAIL.INSTITUTIONAL_PATTERN.test(email);
   },
-  
-  // Validar matrícula (atualizado para mín 7 números)
+
+  // NOVO: Validação de email específico para admin
+  isEmailAdmin: (email) => {
+    if (!email) return false;
+    return VALIDATION_RULES.ADMIN_EMAIL.PATTERN.test(email);
+  },
+
+  // Validação de matrícula
   isMatriculaValida: (matricula) => {
     if (!matricula) return false;
-    return VALIDATION_RULES.MATRICULA.PATTERN.test(matricula);
+    const matriculaStr = String(matricula);
+    return VALIDATION_RULES.MATRICULA.PATTERN.test(matriculaStr) &&
+           matriculaStr.length >= VALIDATION_RULES.MATRICULA.MIN_LENGTH &&
+           matriculaStr.length <= VALIDATION_RULES.MATRICULA.MAX_LENGTH;
   },
-  
-  // Validar senha forte (atualizado para mín 6 chars)
-  isSenhaForte: (senha) => {
-    if (!senha) return false;
-    return senha.length >= VALIDATION_RULES.SENHA.MIN_LENGTH && 
-           /[A-Z]/.test(senha) && 
-           /[0-9]/.test(senha);
+
+  // Validação de senha
+  isSenhaValida: (senha) => {
+    if (!senha || senha.length < VALIDATION_RULES.SENHA.MIN_LENGTH) {
+      return false;
+    }
+
+    const hasUppercase = /[A-Z]/.test(senha);
+    const hasLowercase = /[a-z]/.test(senha);
+    const hasNumber = /\d/.test(senha);
+    const hasSpecial = VALIDATION_RULES.SENHA.SPECIAL_CHARS.test(senha);
+
+    return hasUppercase && hasLowercase && hasNumber && hasSpecial;
   },
-  
-  // Validar telefone (usando a função existente)
-  isTelefoneValido: (telefone) => {
-    if (!telefone) return false;
-    return VALIDATION_RULES.TELEFONE.PATTERN.test(telefone);
-  },
-  
-  // Validar nome
+
+  // Validação de nome
   isNomeValido: (nome) => {
     if (!nome) return false;
-    return nome.trim().length >= VALIDATION_RULES.NOME.MIN_LENGTH;
+    const nomeStr = String(nome).trim();
+    return nomeStr.length >= VALIDATION_RULES.NOME.MIN_LENGTH &&
+           nomeStr.length <= VALIDATION_RULES.NOME.MAX_LENGTH &&
+           VALIDATION_RULES.NOME.PATTERN.test(nomeStr);
   },
-  
-  // Verificar força da senha com detalhes (compatível com o código existente)
-  getPasswordStrength: (senha) => [
-    { 
-      test: senha && senha.length >= VALIDATION_RULES.SENHA.MIN_LENGTH, 
-      label: `Mínimo ${VALIDATION_RULES.SENHA.MIN_LENGTH} caracteres` 
-    },
-    { 
-      test: senha && /[A-Z]/.test(senha), 
-      label: "Uma letra maiúscula" 
-    },
-    { 
-      test: senha && /[0-9]/.test(senha), 
-      label: "Um número" 
-    }
-  ],
-  
-  // Validar se campo está preenchido
-  isRequired: (value) => {
-    return value && value.toString().trim().length > 0;
-  },
-  
-  // Validar papel/role
-  isPapelValido: (papel, validRoles = ['aluno', 'professor']) => {
+
+  // Validação de papel/role
+  isPapelValido: (papel, validRoles = ['aluno', 'professor', 'admin']) => {
     return papel && validRoles.includes(papel);
+  },
+
+  // ATUALIZADA: Função para determinar tipo de usuário no login
+  determinarTipoUsuarioLogin: (inputUsuario) => {
+    if (!inputUsuario) return null;
+    
+    const isEmail = inputUsuario.includes('@');
+    const isMatricula = /^\d{7,}$/.test(inputUsuario);
+    
+    // Verificar se é email de admin (PRIMEIRO para ter precedência)
+    if (isEmail && validators.isEmailAdmin(inputUsuario)) {
+      return { 
+        tipoInput: 'email', 
+        tipoUsuario: 'admin',
+        identificadorAPI: inputUsuario
+      };
+    }
+    
+    // Verificar se é email institucional (professor)
+    if (isEmail && validators.isEmailInstitucional(inputUsuario)) {
+      return { 
+        tipoInput: 'email', 
+        tipoUsuario: 'professor',
+        identificadorAPI: inputUsuario
+      };
+    }
+    
+    // Verificar se é matrícula (aluno)
+    if (isMatricula && validators.isMatriculaValida(inputUsuario)) {
+      return { 
+        tipoInput: 'matricula', 
+        tipoUsuario: 'aluno',
+        identificadorAPI: inputUsuario
+      };
+    }
+    
+    return null;
+  },
+
+  // Função auxiliar para obter detalhes de senha inválida
+  getDetalhesErroSenha: (senha) => {
+    const errors = [];
+    
+    if (!senha) {
+      errors.push('Senha é obrigatória');
+      return errors;
+    }
+
+    if (senha.length < VALIDATION_RULES.SENHA.MIN_LENGTH) {
+      errors.push(`Mínimo de ${VALIDATION_RULES.SENHA.MIN_LENGTH} caracteres`);
+    }
+
+    if (!/[A-Z]/.test(senha)) {
+      errors.push('Pelo menos uma letra maiúscula');
+    }
+
+    if (!/[a-z]/.test(senha)) {
+      errors.push('Pelo menos uma letra minúscula');
+    }
+
+    if (!/\d/.test(senha)) {
+      errors.push('Pelo menos um número');
+    }
+
+    if (!VALIDATION_RULES.SENHA.SPECIAL_CHARS.test(senha)) {
+      errors.push('Pelo menos um caractere especial (!@#$%^&*(),.?":{}|<>)');
+    }
+
+    return errors;
   }
 };
 
 // Mensagens de erro padronizadas
 export const ERROR_MESSAGES = {
-  // Mensagens gerais
-  REQUIRED: (field) => `${field} é obrigatório.`,
+  // Campos obrigatórios
+  CAMPO_OBRIGATORIO: "Este campo é obrigatório.",
   
   // Email
-  EMAIL_REQUIRED: "Email institucional é obrigatório.",
-  EMAIL_INSTITUCIONAL: "Use seu email institucional (@universitas.edu.br).",
+  EMAIL_INVALIDO: "Por favor, insira um email válido.",
+  EMAIL_INSTITUCIONAL_REQUIRED: "Use seu email institucional (@universitas.edu.br).",
+  EMAIL_INSTITUCIONAL_INVALIDO: "Email deve ter o domínio @universitas.edu.br.",
   
-  // Matrícula (atualizado)
+  // NOVOS para admin
+  ADMIN_EMAIL_REQUIRED: "Email de administrador é obrigatório.",
+  ADMIN_EMAIL_INVALIDO: "Use o email específico de administrador (admin@universitas.edu.br).",
+  ADMIN_ACESSO_NEGADO: "Acesso restrito apenas para administradores.",
+  
+  // Matrícula
   MATRICULA_REQUIRED: "Matrícula é obrigatória.",
-  MATRICULA_INVALIDA: `Matrícula deve ter no mínimo ${VALIDATION_RULES.MATRICULA.MIN_LENGTH} números.`,
-  MATRICULA_PROFESSOR: "Informe a matrícula do professor.",
+  MATRICULA_INVALIDA: "Matrícula deve ter pelo menos 7 dígitos numéricos.",
   
-  // Senha (atualizado)
+  // Senha
   SENHA_REQUIRED: "Senha é obrigatória.",
-  SENHA_FRACA: `Senha deve ter no mínimo ${VALIDATION_RULES.SENHA.MIN_LENGTH} caracteres, 1 maiúscula e 1 número.`,
-  SENHA_MIN_LENGTH: `Senha deve ter no mínimo ${VALIDATION_RULES.SENHA.MIN_LENGTH} caracteres.`,
+  SENHA_INVALIDA: "Senha deve ter pelo menos 8 caracteres, incluindo maiúscula, minúscula, número e caractere especial.",
+  SENHAS_NAO_COINCIDEM: "As senhas não coincidem.",
   
-  // Outros campos
-  NOME_REQUIRED: "Nome completo é obrigatório.",
-  NOME_INVALIDO: "Nome deve ter no mínimo 2 caracteres.",
-  TELEFONE_REQUIRED: "Telefone é obrigatório.",
-  TELEFONE_INVALIDO: "Telefone inválido. Use formato (XX) XXXXX-XXXX.",
-  PAPEL_REQUIRED: "Selecione seu papel.",
+  // Nome
+  NOME_REQUIRED: "Nome é obrigatório.",
+  NOME_INVALIDO: "Nome deve ter entre 2-100 caracteres e conter apenas letras.",
+  
+  // Papel
+  PAPEL_REQUIRED: "Selecione seu papel no sistema.",
   PAPEL_INVALIDO: "Papel selecionado é inválido.",
   
-  // Login específico
-  USUARIO_REQUIRED: "Email ou matrícula é obrigatório.",
-  USUARIO_INVALIDO: "Email institucional inválido ou matrícula deve ter no mínimo 7 números."
-};
-
-// Validador principal - código limpo sem múltiplos if-else
-export const createValidator = (rules) => {
-  return (formData) => {
-    const errors = {};
-    
-    Object.entries(rules).forEach(([field, fieldRules]) => {
-      const value = formData[field];
-      
-      // Encontra a primeira regra que falha
-      const failedRule = fieldRules.find(rule => {
-        try {
-          return !rule.validator(value, formData);
-        } catch (error) {
-          console.warn(`Erro na validação do campo ${field}:`, error);
-          return true; // Considera como falha se houver erro
-        }
-      });
-      
-      if (failedRule) {
-        // Se a mensagem é uma função, chama com o valor
-        errors[field] = typeof failedRule.message === 'function' 
-          ? failedRule.message(value, formData)
-          : failedRule.message;
-      }
-    });
-    
-    return errors;
-  };
-};
-
-// Regras de validação pré-configuradas para LOGIN
-export const loginValidationRules = {
-  usuario: [
-    {
-      validator: (value) => validators.isRequired(value),
-      message: ERROR_MESSAGES.USUARIO_REQUIRED
-    },
-    {
-      validator: (value) => {
-        if (!value) return true; // já validado acima
-        const isEmail = value.includes('@');
-        return isEmail 
-          ? validators.isEmailInstitucional(value) 
-          : validators.isMatriculaValida(value);
-      },
-      message: (value) => {
-        if (!value) return ERROR_MESSAGES.USUARIO_REQUIRED;
-        return value.includes('@') 
-          ? ERROR_MESSAGES.EMAIL_INSTITUCIONAL 
-          : ERROR_MESSAGES.MATRICULA_INVALIDA;
-      }
-    }
-  ],
-  senha: [
-    {
-      validator: (value) => validators.isRequired(value),
-      message: ERROR_MESSAGES.SENHA_REQUIRED
-    },
-    {
-      validator: (value) => !value || value.length >= VALIDATION_RULES.SENHA.MIN_LENGTH,
-      message: ERROR_MESSAGES.SENHA_MIN_LENGTH
-    }
-  ]
-};
-
-// Regras de validação pré-configuradas para CADASTRO
-export const registerValidationRules = {
-  nome: [
-    {
-      validator: (value) => validators.isRequired(value),
-      message: ERROR_MESSAGES.NOME_REQUIRED
-    },
-    {
-      validator: (value) => !value || validators.isNomeValido(value),
-      message: ERROR_MESSAGES.NOME_INVALIDO
-    }
-  ],
-  email: [
-    {
-      validator: (value) => validators.isRequired(value),
-      message: ERROR_MESSAGES.EMAIL_REQUIRED
-    },
-    {
-      validator: (value) => !value || validators.isEmailInstitucional(value),
-      message: ERROR_MESSAGES.EMAIL_INSTITUCIONAL
-    }
-  ],
-  telefone: [
-    {
-      validator: (value) => validators.isRequired(value),
-      message: ERROR_MESSAGES.TELEFONE_REQUIRED
-    },
-    {
-      validator: (value) => !value || validators.isTelefoneValido(value),
-      message: ERROR_MESSAGES.TELEFONE_INVALIDO
-    }
-  ],
-  papel: [
-    {
-      validator: (value) => validators.isRequired(value),
-      message: ERROR_MESSAGES.PAPEL_REQUIRED
-    },
-    {
-      validator: (value) => !value || validators.isPapelValido(value),
-      message: ERROR_MESSAGES.PAPEL_INVALIDO
-    }
-  ],
-  matricula: [
-    {
-      validator: (value, formData) => {
-        // Só é obrigatório se o papel for professor
-        return formData.papel !== 'professor' || validators.isRequired(value);
-      },
-      message: ERROR_MESSAGES.MATRICULA_PROFESSOR
-    },
-    {
-      validator: (value, formData) => {
-        // Só valida se for professor e tiver valor
-        return formData.papel !== 'professor' || !value || validators.isMatriculaValida(value);
-      },
-      message: ERROR_MESSAGES.MATRICULA_INVALIDA
-    }
-  ],
-  senha: [
-    {
-      validator: (value) => validators.isRequired(value),
-      message: ERROR_MESSAGES.SENHA_REQUIRED
-    },
-    {
-      validator: (value) => !value || validators.isSenhaForte(value),
-      message: ERROR_MESSAGES.SENHA_FRACA
-    }
-  ]
-};
-
-// Validadores pré-configurados para uso direto
-export const validateLogin = createValidator(loginValidationRules);
-export const validateRegister = createValidator(registerValidationRules);
-
-// Utilitários para tratamento de erros de API
-export const API_ERROR_MESSAGES = {
-  // Códigos de status HTTP comuns
-  400: "Dados inválidos. Verifique as informações enviadas.",
-  401: "Credenciais inválidas. Verifique email/matrícula e senha.",
-  403: "Acesso negado. Você não tem permissão para esta ação.",
-  404: "Recurso não encontrado.",
-  409: "Conflito. Email ou matrícula já cadastrados.",
-  422: "Dados não processáveis. Verifique os campos obrigatórios.",
-  500: "Erro interno do servidor. Tente novamente mais tarde.",
-  502: "Serviço temporariamente indisponível.",
-  503: "Serviço em manutenção. Tente novamente mais tarde.",
+  // Login
+  LOGIN_INVALIDO: "Email/matrícula ou senha incorretos.",
+  LOGIN_FORMATO_INVALIDO: "Formato inválido. Use matrícula (alunos), email institucional (professores) ou admin@universitas.edu.br (administrador).",
   
-  // Mensagem padrão
-  DEFAULT: "Erro inesperado. Tente novamente."
+  // Registro
+  USUARIO_JA_EXISTE: "Este usuário já está cadastrado.",
+  REGISTRO_ERRO: "Erro ao realizar cadastro. Tente novamente.",
+  
+  // Gerais
+  ERRO_INESPERADO: "Ocorreu um erro inesperado. Tente novamente.",
+  ERRO_CONEXAO: "Erro de conexão. Verifique sua internet."
 };
 
-// Função para mapear erros de API
+// Funções de validação específicas para formulários
+export const validateLogin = (form) => {
+  const errors = {};
+
+  // Validar campo usuário (email ou matrícula)
+  if (!form.usuario?.trim()) {
+    errors.usuario = ERROR_MESSAGES.CAMPO_OBRIGATORIO;
+  } else {
+    const tipoInfo = validators.determinarTipoUsuarioLogin(form.usuario.trim());
+    if (!tipoInfo) {
+      errors.usuario = ERROR_MESSAGES.LOGIN_FORMATO_INVALIDO;
+    }
+  }
+
+  // Validar senha
+  if (!form.senha?.trim()) {
+    errors.senha = ERROR_MESSAGES.SENHA_REQUIRED;
+  }
+
+  return errors;
+};
+
+export const validateRegister = (form) => {
+  const errors = {};
+
+  // Nome
+  if (!form.nome?.trim()) {
+    errors.nome = ERROR_MESSAGES.NOME_REQUIRED;
+  } else if (!validators.isNomeValido(form.nome.trim())) {
+    errors.nome = ERROR_MESSAGES.NOME_INVALIDO;
+  }
+
+  // Email (para professores) ou Matrícula (para alunos)
+  if (form.papel === 'professor') {
+    if (!form.email?.trim()) {
+      errors.email = ERROR_MESSAGES.EMAIL_INSTITUCIONAL_REQUIRED;
+    } else if (!validators.isEmailInstitucional(form.email.trim())) {
+      errors.email = ERROR_MESSAGES.EMAIL_INSTITUCIONAL_INVALIDO;
+    }
+  } else if (form.papel === 'aluno') {
+    if (!form.matricula?.trim()) {
+      errors.matricula = ERROR_MESSAGES.MATRICULA_REQUIRED;
+    } else if (!validators.isMatriculaValida(form.matricula.trim())) {
+      errors.matricula = ERROR_MESSAGES.MATRICULA_INVALIDA;
+    }
+  }
+
+  // Papel
+  if (!form.papel) {
+    errors.papel = ERROR_MESSAGES.PAPEL_REQUIRED;
+  } else if (!validators.isPapelValido(form.papel, ['aluno', 'professor'])) {
+    errors.papel = ERROR_MESSAGES.PAPEL_INVALIDO;
+  }
+
+  // Senha
+  if (!form.senha?.trim()) {
+    errors.senha = ERROR_MESSAGES.SENHA_REQUIRED;
+  } else if (!validators.isSenhaValida(form.senha)) {
+    errors.senha = ERROR_MESSAGES.SENHA_INVALIDA;
+  }
+
+  // Confirmar senha
+  if (!form.confirmarSenha?.trim()) {
+    errors.confirmarSenha = ERROR_MESSAGES.CAMPO_OBRIGATORIO;
+  } else if (form.senha !== form.confirmarSenha) {
+    errors.confirmarSenha = ERROR_MESSAGES.SENHAS_NAO_COINCIDEM;
+  }
+
+  return errors;
+};
+
+// Configurações de tipos de usuário
+export const USER_ROLES = [
+  { value: 'aluno', label: 'Aluno' },
+  { value: 'professor', label: 'Professor' },
+  { value: 'admin', label: 'Bibliotecário/Admin' }
+];
+
+// Função auxiliar para obter mensagem de erro da API
 export const getApiErrorMessage = (error) => {
-  if (error?.response?.status) {
-    return API_ERROR_MESSAGES[error.response.status] || API_ERROR_MESSAGES.DEFAULT;
+  if (error?.response?.data?.message) {
+    return error.response.data.message;
   }
   
   if (error?.message) {
     return error.message;
   }
   
-  return API_ERROR_MESSAGES.DEFAULT;
+  return ERROR_MESSAGES.ERRO_INESPERADO;
 };
 
-// Exportação padrão com todos os utilitários
-const validationUtils = {
-  VALIDATION_RULES,
-  validators,
-  ERROR_MESSAGES,
-  API_ERROR_MESSAGES,
-  createValidator,
-  validateLogin,
-  validateRegister,
-  loginValidationRules,
-  registerValidationRules,
-  getApiErrorMessage
+// Função auxiliar para debug
+export const debugValidation = (input, expectedType) => {
+  console.log('=== DEBUG VALIDATION ===');
+  console.log('Input:', input);
+  console.log('Expected Type:', expectedType);
+  
+  const result = validators.determinarTipoUsuarioLogin(input);
+  console.log('Validation Result:', result);
+  
+  if (input?.includes('@')) {
+    console.log('Is Admin Email:', validators.isEmailAdmin(input));
+    console.log('Is Institutional Email:', validators.isEmailInstitucional(input));
+  } else {
+    console.log('Is Valid Matricula:', validators.isMatriculaValida(input));
+  }
+  
+  console.log('========================');
+  return result;
 };
 
-export default validationUtils;
