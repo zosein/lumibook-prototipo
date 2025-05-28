@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Book, Home, BookOpen, Undo2, CoinsIcon, Search, ArrowLeft, AlertTriangle, Users } from 'lucide-react';
+import StatsService from '../services/StatsService';
+import UserService from '../services/UserService';
 
 // Hook personalizado para buscar estatísticas da API
 const useUserStats = (user, isLoggedIn) => {
@@ -19,41 +21,14 @@ const useUserStats = (user, isLoggedIn) => {
       setError(null);
 
       try {
-        // Preparar endpoint baseado no tipo de usuário
-        const endpoint = user.papel === 'professor' 
-          ? `/api/professores/${user.id}/estatisticas`
-          : `/api/alunos/${user.id}/estatisticas`;
-
-        // Headers com autenticação
-        const headers = {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json',
-        };
-
-        // SIMULAÇÃO da chamada API - substituir por fetch real
-        console.log(`[API CALL] GET ${endpoint}`, { headers, userId: user.id, userType: user.papel });
-        
-        // Simular delay da rede
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Dados mockados baseados no tipo de usuário
-        const mockApiResponse = user.papel === 'professor' 
-          ? getMockProfessorStats(user.id)
-          : getMockAlunoStats(user.id);
-
-        // Simular possível erro da API (5% de chance)
-        if (Math.random() < 0.05) {
-          throw new Error('Falha na conexão com o servidor');
-        }
-
-        setStats(mockApiResponse);
+        // Usar StatsService para buscar dados reais da API
+        const statsData = await StatsService.getUserStats(user, false);
+        setStats(statsData);
 
       } catch (err) {
         console.error('Erro ao buscar estatísticas do usuário:', err);
         setError(err.message || 'Erro ao carregar estatísticas');
-        
-        // Fallback para dados offline/cache
-        setStats(getOfflineStats(user.papel));
+        setStats(null);
         
       } finally {
         setLoading(false);
@@ -62,89 +37,60 @@ const useUserStats = (user, isLoggedIn) => {
 
     fetchUserStats();
   }, [user, user?.id, user?.papel, isLoggedIn]);
-
   return { stats, loading, error };
 };
 
-// Função para gerar estatísticas mock de ALUNO com regras de negócio
-const getMockAlunoStats = (userId) => {
-  const limiteConcorrente = 3; // Limite de livros simultâneos para aluno
-  const livrosEmprestados = Math.floor(Math.random() * 3); // 0-2 empréstimos atuais
-  const livrosDisponiveis = limiteConcorrente - livrosEmprestados; // CÁLCULO CORRETO
+// Hook personalizado para buscar dados do perfil do usuário
+const useUserProfile = (user, isLoggedIn) => {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  return {
-    // Estatísticas específicas para ALUNOS
-    livrosEmprestados,
-    livrosDisponiveis, // Quantos ainda pode emprestar
-    limiteConcorrente,
-    devolucoesPendentes: Math.floor(Math.random() * 2), // 0-1 devoluções pendentes
-    multasPendentes: Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0, // 30% chance de multa
-    reservasAtivas: Math.floor(Math.random() * 2), // 0-1 reservas
-    historicoEmprestimos: Math.floor(Math.random() * 20) + 5, // 5-25 empréstimos históricos
-    pontosUsuario: Math.floor(Math.random() * 100), // Sistema de pontuação
-    
-    // Metadados da consulta
-    ultimaAtualizacao: new Date().toISOString(),
-    fonte: 'api',
-    tipoUsuario: 'aluno'
-  };
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!isLoggedIn || !user || !user.id) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const profileData = await UserService.getUserProfile(user.id, user.papel);
+        setProfile(profileData);
+      } catch (error) {
+        console.warn('Erro ao buscar perfil do usuário:', error);
+        // Usar dados padrão em caso de erro
+        setProfile({
+          avatar: await UserService.getUserAvatar(user.id, user.papel),
+          statusConta: 'ativa',
+          membroDesde: 'Janeiro 2024',
+          tipoLogin: user.papel === 'aluno' ? 'matrícula' : 'email'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user, user?.id, user?.papel, isLoggedIn]);
+
+  return { profile, loading };
 };
 
-// Função para gerar estatísticas mock de PROFESSOR com regras de negócio
-const getMockProfessorStats = (userId) => {
-  const limiteConcorrente = 10; // Limite de livros simultâneos para professor
-  const livrosEmprestados = Math.floor(Math.random() * 8); // 0-7 empréstimos atuais
-  const livrosDisponiveis = limiteConcorrente - livrosEmprestados; // CÁLCULO CORRETO
+// REMOVIDO: Funções de dados mockados (getMockAlunoStats, getMockProfessorStats, getOfflineStats)
+// Agora todas as estatísticas vêm da API através do StatsService
 
-  return {
-    // Estatísticas específicas para PROFESSORES
-    livrosEmprestados,
-    livrosDisponiveis, // Quantos ainda pode emprestar
-    limiteConcorrente,
-    devolucoesPendentes: Math.floor(Math.random() * 3), // 0-2 devoluções pendentes
-    multasPendentes: 0, // Professores geralmente isentos de multa
-    reservasAtivas: Math.floor(Math.random() * 5), // 0-4 reservas
-    historicoEmprestimos: Math.floor(Math.random() * 50) + 20, // 20-70 empréstimos históricos
-    livrosSolicitados: Math.floor(Math.random() * 3), // Solicitações de compra
-    
-    // Funcionalidades específicas de professor
-    turmasAtivas: Math.floor(Math.random() * 4) + 1, // 1-4 turmas
-    bibliografiasGerenciadas: Math.floor(Math.random() * 6) + 2, // 2-8 bibliografias
-    
-    // Metadados da consulta
-    ultimaAtualizacao: new Date().toISOString(),
-    fonte: 'api',
-    tipoUsuario: 'professor'
-  };
-};
-
-// Dados de fallback para modo offline
-const getOfflineStats = (papel) => {
-  const limiteConcorrente = papel === 'professor' ? 10 : 3;
-  
-  return {
-    livrosEmprestados: 0,
-    livrosDisponiveis: limiteConcorrente, // Limite completo quando offline
-    limiteConcorrente,
-    devolucoesPendentes: 0,
-    multasPendentes: 0,
-    reservasAtivas: 0,
-    ultimaAtualizacao: null,
-    fonte: 'offline',
-    tipoUsuario: papel
-  };
-};
-
-export default function StudentProfile({ 
+export default function StudentProfile({
   user = {
     name: "ALUNO",
-    avatar: "https://randomuser.me/api/portraits/lego/1.jpg",
+    avatar: null, // Avatar será buscado da API
   }, 
   setCurrentPage,
   isLoggedIn 
 }) {
   // Hook para buscar estatísticas da API
   const { stats, loading, error } = useUserStats(user, isLoggedIn);
+    // Hook para buscar dados do perfil (incluindo avatar dinâmico)
+  const { profile } = useUserProfile(user, isLoggedIn);
 
   // Validação de segurança: só renderiza se estiver logado
   if (!isLoggedIn || !user) {
@@ -179,12 +125,11 @@ export default function StudentProfile({
           
           <span className="font-bold text-xl text-white tracking-widest flex items-center">
             LUMIBOOK
-            <Book size={24} className="ml-2 text-yellow-400" aria-hidden="true" />
+            <Book size={24} className="ml-2 text-white-400" aria-hidden="true" />
           </span>
-        </div>
-        <div className="flex items-center gap-3">
+        </div>        <div className="flex items-center gap-3">
           <img 
-            src={user.avatar} 
+            src={profile?.avatar || UserService.getDefaultAvatar(user.papel || 'aluno')} 
             alt="Avatar" 
             className="w-8 h-8 rounded-full border-2 border-white"
           />
@@ -316,15 +261,14 @@ export default function StudentProfile({
                   label="Tipo de usuário" 
                   value={user.papel === 'professor' ? 'Professor' : 'Estudante'} 
                   valueColor={user.papel === 'professor' ? 'text-purple-600 font-medium' : 'text-blue-600 font-medium'}
-                />
-                <InfoCard 
+                />                <InfoCard 
                   label="Status da conta" 
-                  value="Ativa" 
+                  value={profile?.statusConta || 'Carregando...'} 
                   valueColor="text-green-600 font-medium"
                 />
                 <InfoCard 
                   label="Membro desde" 
-                  value="Janeiro 2024" 
+                  value={profile?.membroDesde || 'Carregando...'} 
                 />
               </div>
             </div>

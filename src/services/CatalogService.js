@@ -148,22 +148,10 @@ export class CatalogService {
       const tipos = await response.json();
       return tipos;
 
-    } catch (error) {
-      console.warn('[API WARNING] Usando tipos padrão:', error);
+    } catch (error) {      console.error('[API ERROR] Erro ao buscar tipos de obra:', error);
       
-      // Fallback para tipos padrão
-      return [
-        'Livro',
-        'E-book', 
-        'Periódico',
-        'Tese',
-        'Dissertação',
-        'Artigo Científico',
-        'Manual',
-        'Monografia',
-        'TCC',
-        'Relatório Técnico'
-      ];
+      // Não usar fallback - forçar uso da API
+      throw new Error('Não foi possível carregar tipos de obra. Verifique a conexão com a API.');
     }
   }
 
@@ -181,32 +169,10 @@ export class CatalogService {
       const categorias = await response.json();
       return categorias;
 
-    } catch (error) {
-      console.warn('[API WARNING] Usando categorias padrão:', error);
+    } catch (error) {      console.error('[API ERROR] Erro ao buscar categorias:', error);
       
-      // Fallback para categorias padrão
-      return [
-        'Ciência da Computação',
-        'Engenharia',
-        'Matemática',
-        'Física',
-        'Química',
-        'Biologia',
-        'Medicina',
-        'Direito',
-        'Administração',
-        'Economia',
-        'Literatura',
-        'História',
-        'Geografia',
-        'Filosofia',
-        'Psicologia',
-        'Educação',
-        'Artes',
-        'Comunicação',
-        'Arquitetura',
-        'Ciências Sociais'
-      ];
+      // Não usar fallback - forçar uso da API
+      throw new Error('Não foi possível carregar categorias. Verifique a conexão com a API.');
     }
   }
 

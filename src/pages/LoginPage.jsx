@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Eye, EyeOff, Mail, Hash, Loader2, ArrowLeft, AlertCircle, Shield } from 'lucide-react';
 import { validateLogin, validators, getApiErrorMessage } from '../utils/Validation';
+import UserService from '../services/UserService';
 
 export default function LoginPage({ setCurrentPage, onLogin }) {
   const [form, setForm] = useState({ usuario: '', senha: '' });
@@ -64,8 +65,7 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
         setErrors({ geral: "Formato de login inválido. Use matrícula (alunos), email institucional (professores) ou admin@universitas.edu.br (administrador)." });
         return;
       }
-      
-      // Preparar dados para API com tipo de usuário determinístico
+        // Preparar dados para API com tipo de usuário determinístico
       const dadosAPI = {
         identificador: tipoInfo.identificadorAPI,
         tipoInput: tipoInfo.tipoInput,
@@ -74,43 +74,9 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
       };
       
       console.log('Dados para API de login:', dadosAPI);
-      await new Promise(res => setTimeout(res, 1000));
       
-      // Simular resposta da API baseada no tipo de usuário
-      let userData;
-      
-      if (tipoInfo.tipoUsuario === 'admin') {
-        userData = {
-          usuario: form.usuario,
-          nome: 'Bibliotecário Principal',
-          email: form.usuario,
-          papel: 'admin',
-          tipoLogin: 'email',
-          id: 'admin123'
-        };
-        console.log('Login como ADMIN:', userData); // DEBUG
-      } else if (tipoInfo.tipoUsuario === 'aluno') {
-        userData = {
-          usuario: form.usuario,
-          nome: 'João Silva',
-          email: `${form.usuario}@universitas.edu.br`,
-          papel: 'aluno',
-          tipoLogin: 'matricula',
-          matricula: form.usuario,
-          id: 'user123'
-        };
-        console.log('Login como ALUNO:', userData); // DEBUG
-      } else {
-        userData = {
-          usuario: form.usuario,
-          nome: 'Prof. Maria Santos',
-          email: form.usuario,
-          papel: 'professor',
-          tipoLogin: 'email',
-          id: 'prof123'
-        };
-        console.log('Login como PROFESSOR:', userData); // DEBUG
-      }
+      // Realizar login através da API usando UserService
+      const userData = await UserService.login(dadosAPI);
       
       setSuccess("Login realizado! Redirecionando...");
       setTimeout(() => onLogin(userData), 1200);

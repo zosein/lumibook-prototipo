@@ -145,80 +145,10 @@ export class StatsService {
       throw error;
     }
   }
-
-  // Simular empréstimo de livro (para teste)
-  static async simularEmprestimo(userId, userType) {
-    try {
-      const currentStats = StatsCache.get(userId);
-      if (!currentStats) {
-        throw new Error('Estatísticas não encontradas no cache');
-      }
-
-      // Verificar se pode emprestar mais livros
-      if (currentStats.livrosDisponiveis <= 0) {
-        throw new Error(`Limite de empréstimos atingido (${currentStats.limiteConcorrente})`);
-      }
-
-      // Simular atualizações
-      const newStats = {
-        ...currentStats,
-        livrosEmprestados: currentStats.livrosEmprestados + 1,
-        livrosDisponiveis: currentStats.livrosDisponiveis - 1,
-        ultimaAtualizacao: new Date().toISOString()
-      };
-
-      // Atualizar cache
-      StatsCache.set(userId, newStats);
-
-      console.log(`📚 Empréstimo simulado para ${userType}:`, {
-        antes: { emprestados: currentStats.livrosEmprestados, disponíveis: currentStats.livrosDisponiveis },
-        depois: { emprestados: newStats.livrosEmprestados, disponíveis: newStats.livrosDisponiveis }
-      });
-
-      return newStats;
-
-    } catch (error) {
-      console.error('Erro ao simular empréstimo:', error);
-      throw error;
-    }
-  }
-
-  // Simular devolução de livro (para teste)
-  static async simularDevolucao(userId, userType) {
-    try {
-      const currentStats = StatsCache.get(userId);
-      if (!currentStats) {
-        throw new Error('Estatísticas não encontradas no cache');
-      }
-
-      // Verificar se tem livros para devolver
-      if (currentStats.livrosEmprestados <= 0) {
-        throw new Error('Nenhum livro para devolver');
-      }
-
-      // Simular atualizações
-      const newStats = {
-        ...currentStats,
-        livrosEmprestados: currentStats.livrosEmprestados - 1,
-        livrosDisponiveis: currentStats.livrosDisponiveis + 1,
-        ultimaAtualizacao: new Date().toISOString()
-      };
-
-      // Atualizar cache
-      StatsCache.set(userId, newStats);
-
-      console.log(`📖 Devolução simulada para ${userType}:`, {
-        antes: { emprestados: currentStats.livrosEmprestados, disponíveis: currentStats.livrosDisponiveis },
-        depois: { emprestados: newStats.livrosEmprestados, disponíveis: newStats.livrosDisponiveis }
-      });
-
-      return newStats;
-
-    } catch (error) {
-      console.error('Erro ao simular devolução:', error);
-      throw error;
-    }
-  }
+  // REMOVIDO: Funções de simulação de empréstimo e devolução
+  // Agora use as APIs reais:
+  // POST /api/emprestimos para criar empréstimos
+  // PUT /api/emprestimos/:id/devolucao para devoluções
 
   // Buscar histórico de empréstimos
   static async getUserHistory(userId, userType, page = 1, limit = 10) {

@@ -60,7 +60,7 @@ export default function Header({ setCurrentPage, isLoggedIn, user, onLogout }) {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <BookMarked size={24} />
-            <h1 className="text-xl font-bold">LumiBook</h1>
+            <h1 className="text-xl font-bold">LUMIBOOK</h1>
           </div>
           <div className="relative" ref={dropdownRef}>
             <button 

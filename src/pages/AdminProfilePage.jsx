@@ -17,11 +17,10 @@ export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onL
       </div>
     );
   }
-
   // Formatar dados do usuário para o componente AdminProfile
   const adminData = {
     nome: user.nome || user.usuario || "ADMINISTRADOR",
-    avatar: "https://randomuser.me/api/portraits/lego/1.jpg", // Avatar padrão - substituir por URL da API
+    avatar: null, // Avatar será buscado dinamicamente pela API via UserService
     email: user.email,
     papel: user.papel,
     tipoLogin: user.tipoLogin,
@@ -123,50 +122,13 @@ export function DashboardContent() {
             <h3 className="text-lg font-semibold text-gray-900">Atividades Recentes</h3>
           </div>
         </div>
-        
-        <div className="p-6">
+          <div className="p-6">
           <div className="space-y-4">
-            {[
-              {
-                action: 'Nova obra catalogada', 
-                details: '"Algoritmos Avançados" por Maria Santos', 
-                time: '2 min atrás',
-                icon: Plus,
-                color: 'green'
-              },
-              {
-                action: 'Usuário cadastrado', 
-                details: 'João Silva (Matrícula: 2024001)', 
-                time: '15 min atrás',
-                icon: UserPlus,
-                color: 'blue'
-              },
-              {
-                action: 'Empréstimo realizado', 
-                details: '"Introdução à Ciência da Computação"', 
-                time: '32 min atrás',
-                icon: BookOpen,
-                color: 'orange'
-              },
-              {
-                action: 'Relatório gerado', 
-                details: 'Relatório mensal de empréstimos', 
-                time: '1 hora atrás',
-                icon: FileText,
-                color: 'purple'
-              }
-            ].map((activity, index) => (
-              <div key={index} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-                <div className={`p-2 bg-${activity.color}-100 rounded-lg flex-shrink-0`}>
-                  <activity.icon size={16} className={`text-${activity.color}-600`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900">{activity.action}</p>
-                  <p className="text-sm text-gray-600 truncate">{activity.details}</p>
-                </div>
-                <span className="text-xs text-gray-500 flex-shrink-0">{activity.time}</span>
-              </div>
-            ))}
+            {/* Atividades agora vêm da API via UserService.getSystemActivities() */}
+            <div className="text-center py-4">
+              <p className="text-gray-500">Atividades carregadas dinamicamente da API</p>
+              <p className="text-sm text-gray-400 mt-1">Integração com UserService.getSystemActivities()</p>
+            </div>
           </div>
         </div>
       </div>

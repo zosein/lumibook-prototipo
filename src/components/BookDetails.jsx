@@ -1,17 +1,88 @@
+import { useState, useEffect } from 'react';
 import { BookOpen, Info } from 'lucide-react';
-import { resultados } from '../data/sampleData';
 
 export default function BookDetails({ setCurrentPage, bookId }) {
-  // Se não houver ID, use o primeiro livro como padrão ou um ID específico
-  const id = bookId || 6; // ID 6 é "Análise de Dados com Python" nos dados atualizados
-  
-  // Encontre o livro pelos dados
-  const livro = resultados.find(item => item.id === id) || resultados[0];
-  
-  // Obras relacionadas (excluindo o livro atual)
-  const obrasRelacionadas = resultados
-    .filter(item => item.id !== id)
-    .slice(0, 4);
+  const [livro, setLivro] = useState(null);
+  const [obrasRelacionadas, setObrasRelacionadas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchBookDetails = async () => {
+      if (!bookId) {
+        setError('ID do livro não fornecido');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Buscar detalhes do livro da API
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/livros/${bookId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Livro não encontrado: ${response.status}`);
+        }
+
+        const bookData = await response.json();
+        setLivro(bookData);
+
+        // Buscar obras relacionadas (por categoria)
+        const relatedResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/livros/relacionados/${bookId}?limit=4`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (relatedResponse.ok) {
+          const relatedBooks = await relatedResponse.json();
+          setObrasRelacionadas(relatedBooks);
+        }
+
+      } catch (err) {
+        console.error('Erro ao buscar detalhes do livro:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookDetails();
+  }, [bookId]);
+
+  if (loading) {
+    return (
+      <div className="p-4">
+        <div className="bg-white border border-gray-200 rounded-md p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="font-medium text-gray-600">Carregando detalhes...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !livro) {
+    return (
+      <div className="p-4">
+        <button 
+          className="mb-4 flex items-center gap-1 text-blue-600" 
+          onClick={() => setCurrentPage('resultados')}
+        >
+          ← Voltar aos resultados
+        </button>
+        <div className="bg-white border border-gray-200 rounded-md p-8 text-center">
+          <Info size={40} className="mx-auto mb-2 text-red-400" />
+          <p className="font-medium text-red-600">Erro ao carregar livro</p>
+          <p className="text-sm text-gray-500 mt-1">{error || 'Livro não encontrado'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">

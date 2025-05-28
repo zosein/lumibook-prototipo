@@ -14,11 +14,10 @@ export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn })
       </div>
     );
   }
-
   // Formatar dados do usuário para o componente StudentProfile
   const userData = {
     name: user.nome || user.usuario || "USUÁRIO",
-    avatar: "https://randomuser.me/api/portraits/lego/1.jpg", // Avatar padrão - substituir por URL da API
+    avatar: null, // Avatar será buscado dinamicamente pela API via UserService
     email: user.email,
     papel: user.papel,
     matricula: user.tipoLogin === 'matricula' ? user.usuario : null,

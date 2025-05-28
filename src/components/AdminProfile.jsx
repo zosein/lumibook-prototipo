@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Book, Home, BookOpen, Search, ArrowLeft, AlertTriangle, Users,Plus, Edit3,
-  FileText, Settings, BarChart3, Shield, Database, Activity, UserPlus, Clock, CheckCircle} from 'lucide-react';
+  FileText, Settings, BarChart3, Shield, Database, Activity, Clock, CheckCircle} from 'lucide-react';
 import { useCatalogacao } from '../hooks/useCatalogacao';
+import UserService from '../services/UserService';
 
 // Hook personalizado para buscar estatísticas do admin
 const useAdminStats = (user, isLoggedIn) => {
@@ -21,37 +22,32 @@ const useAdminStats = (user, isLoggedIn) => {
       setError(null);
 
       try {
-        // Endpoint específico para estatísticas de admin
+        // Usar StatsService ou endpoint específico para admin
         const endpoint = `/api/admin/${user.id}/estatisticas`;
-
-        // Headers com autenticação
         const headers = {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json',
         };
 
-        // SIMULAÇÃO da chamada API - substituir por fetch real
         console.log(`[API CALL] GET ${endpoint}`, { headers, userId: user.id, userType: 'admin' });
         
-        // Simular delay da rede
-        await new Promise(resolve => setTimeout(resolve, 800));
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}${endpoint}`, {
+          method: 'GET',
+          headers,
+          signal: AbortSignal.timeout(10000)
+        });
 
-        // Dados mockados para administrador
-        const mockApiResponse = getMockAdminStats(user.id);
-
-        // Simular possível erro da API (5% de chance)
-        if (Math.random() < 0.05) {
-          throw new Error('Falha na conexão com o servidor');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        setStats(mockApiResponse);
+        const statsData = await response.json();
+        setStats(statsData);
 
       } catch (err) {
         console.error('Erro ao buscar estatísticas do admin:', err);
         setError(err.message || 'Erro ao carregar estatísticas');
-        
-        // Fallback para dados offline/cache
-        setStats(getOfflineAdminStats());
+        setStats(null);
         
       } finally {
         setLoading(false);
@@ -64,57 +60,13 @@ const useAdminStats = (user, isLoggedIn) => {
   return { stats, loading, error };
 };
 
-// Função para gerar estatísticas mock do ADMIN
-const getMockAdminStats = (userId) => {
-  return {
-    // Estatísticas do sistema
-    totalObras: Math.floor(Math.random() * 5000) + 15000, // 15k-20k obras
-    usuariosAtivos: Math.floor(Math.random() * 1000) + 2000, // 2k-3k usuários
-    emprestimosHoje: Math.floor(Math.random() * 50) + 50, // 50-100 empréstimos hoje
-    obrasDisponiveis: Math.floor(Math.random() * 3000) + 12000, // 12k-15k disponíveis
-    
-    // Estatísticas de gestão
-    novasObrasMes: Math.floor(Math.random() * 100) + 50, // 50-150 obras catalogadas no mês
-    usuariosCadastradosMes: Math.floor(Math.random() * 50) + 20, // 20-70 novos usuários
-    relatoriosGerados: Math.floor(Math.random() * 10) + 5, // 5-15 relatórios
-    multasArrecadadas: Math.floor(Math.random() * 500) + 200, // R$ 200-700
-    
-    // Estatísticas operacionais
-    devolucoesPendentes: Math.floor(Math.random() * 20) + 10, // 10-30 devoluções pendentes
-    reservasAtivas: Math.floor(Math.random() * 50) + 30, // 30-80 reservas ativas
-    emprestimosVencidos: Math.floor(Math.random() * 15) + 5, // 5-20 empréstimos vencidos
-    
-    // Metadados da consulta
-    ultimaAtualizacao: new Date().toISOString(),
-    fonte: 'api',
-    tipoUsuario: 'admin'
-  };
-};
+// REMOVIDO: Funções de dados mockados (getMockAdminStats, getOfflineAdminStats)
+// Agora todas as estatísticas de admin vêm da API
 
-// Dados de fallback para modo offline
-const getOfflineAdminStats = () => {
-  return {
-    totalObras: 15247,
-    usuariosAtivos: 2438,
-    emprestimosHoje: 89,
-    obrasDisponiveis: 12891,
-    novasObrasMes: 85,
-    usuariosCadastradosMes: 42,
-    relatoriosGerados: 8,
-    multasArrecadadas: 350,
-    devolucoesPendentes: 15,
-    reservasAtivas: 45,
-    emprestimosVencidos: 8,
-    ultimaAtualizacao: null,
-    fonte: 'offline',
-    tipoUsuario: 'admin'
-  };
-};
-
-export default function AdminProfile({ 
+export default function AdminProfile({
   user = {
     nome: "ADMINISTRADOR",
-    avatar: "https://randomuser.me/api/portraits/lego/1.jpg",
+    avatar: null, // Avatar será buscado da API
   }, 
   setCurrentPage,
   isLoggedIn,
@@ -309,6 +261,26 @@ function AdminNavItem({ icon: Icon, label, onClick, isActive = false }) {
 
 // Seção Dashboard
 function DashboardSection({ stats, loading, error, onRefresh, setActiveSection }) {
+  const [activities, setActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const systemActivities = await UserService.getSystemActivities();
+        setActivities(systemActivities);
+      } catch (error) {
+        console.error('Erro ao carregar atividades:', error);
+        // Fallback para dados offline se necessário
+        setActivities([]);
+      } finally {
+        setActivitiesLoading(false);
+      }
+    };
+
+    loadActivities();
+  }, []);
+
   return (
     <section className="space-y-8">
       {/* Estatísticas principais */}
@@ -354,23 +326,29 @@ function DashboardSection({ stats, loading, error, onRefresh, setActiveSection }
           Atividades Recentes
         </h3>
         <div className="space-y-4">
-          {[
-            { action: 'Nova obra catalogada', details: '"Algoritmos Avançados" por Maria Santos', time: '2 min atrás', icon: Plus, color: 'green' },
-            { action: 'Usuário cadastrado', details: 'João Silva (Matrícula: 2024001)', time: '15 min atrás', icon: UserPlus, color: 'blue' },
-            { action: 'Empréstimo realizado', details: '"Introdução à Ciência da Computação"', time: '32 min atrás', icon: BookOpen, color: 'orange' },
-            { action: 'Relatório gerado', details: 'Relatório mensal de empréstimos', time: '1 hora atrás', icon: FileText, color: 'purple' }
-          ].map((activity, index) => (
-            <div key={index} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-              <div className={`p-2 bg-${activity.color}-100 rounded-lg flex-shrink-0`}>
-                <activity.icon size={16} className={`text-${activity.color}-600`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900">{activity.action}</p>
-                <p className="text-sm text-gray-600 truncate">{activity.details}</p>
-              </div>
-              <span className="text-xs text-gray-500 flex-shrink-0">{activity.time}</span>
+          {activitiesLoading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-sm text-gray-500 mt-2">Carregando atividades...</p>
             </div>
-          ))}
+          ) : activities.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-gray-500">Nenhuma atividade recente encontrada</p>
+            </div>
+          ) : (
+            activities.map((activity, index) => (
+              <div key={index} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors duration-200">
+                <div className={`p-2 bg-${activity.color}-100 rounded-lg flex-shrink-0`}>
+                  <activity.icon size={16} className={`text-${activity.color}-600`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900">{activity.action}</p>
+                  <p className="text-sm text-gray-600 truncate">{activity.details}</p>
+                </div>
+                <span className="text-xs text-gray-500 flex-shrink-0">{activity.time}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -978,6 +956,24 @@ function RelatoriosSection() {
 }
 
 function ConfiguracoesSection({ user, onLogout }) {
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profileData = await UserService.getUserProfile(user.id, 'admin');
+        setProfile(profileData);
+      } catch (error) {
+        console.error('Erro ao carregar perfil do admin:', error);
+        setProfile(UserService.getDefaultProfileData(user.id, 'admin'));
+      }
+    };
+
+    if (user?.id) {
+      loadProfile();
+    }
+  }, [user]);
+
   return (
     <div className="space-y-6">
       {/* Informações do admin */}
@@ -996,16 +992,16 @@ function ConfiguracoesSection({ user, onLogout }) {
           />
           <AdminInfoCard 
             label="Tipo de login" 
-            value="Email institucional" 
+            value={profile?.tipoLogin || 'Carregando...'} 
           />
           <AdminInfoCard 
             label="Status da conta" 
-            value="Ativa" 
+            value={profile?.statusConta || 'Carregando...'} 
             valueColor="text-green-600 font-medium"
           />
           <AdminInfoCard 
             label="Permissões" 
-            value="Acesso total" 
+            value={profile?.permissoes || 'Carregando...'} 
             valueColor="text-orange-600 font-medium"
           />
         </div>
