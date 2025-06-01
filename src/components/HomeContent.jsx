@@ -11,7 +11,7 @@ export default function HomeContent({ setCurrentPage }) {
       try {
         const token = localStorage.getItem('authToken');
         const books = await CatalogService.getRecentBooks(token);
-        setRecentBooks(books);
+        setRecentBooks(Array.isArray(books) ? books : []);
       } catch (error) {
         setRecentBooks([]);
       } finally {

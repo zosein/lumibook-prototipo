@@ -53,26 +53,26 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
     setErrors({});
     
     try {
-      // Preparar dados para API - incluir matrícula apenas para alunos
+      // Preparar dados para API - garantir todos os campos necessários
       const dadosAPI = {
         nome: form.nome,
         email: form.email,
-        telefone: form.telefone,
-        papel: form.papel,
+        telefone: form.telefone || "",
+        papel: form.papel || "",
         senha: form.senha,
-        // Matrícula apenas para alunos
-        ...(form.papel === 'aluno' && { matricula: form.matricula })
+        matricula: form.papel === 'aluno' ? (form.matricula || "") : ""
       };
-      
       // Simulação de cadastro - substituir pela chamada real da API
-      console.log('Dados para API (cadastro):', dadosAPI);
-      await new Promise(res => setTimeout(res, 1200));
-      
-      setSuccess("Cadastro realizado com sucesso! Redirecionando para o login...");
-      setTimeout(() => {
-        onRegisterSuccess();
-      }, 1500);
-      
+      // const resposta = await UserService.register(dadosAPI); // Exemplo real
+      const resposta = { success: true }; // Simulação
+      if (resposta.success === false || resposta.message) {
+        setErrors({ geral: resposta.message || "Erro ao cadastrar. Tente novamente mais tarde." });
+      } else {
+        setSuccess("Cadastro realizado com sucesso! Redirecionando para o login...");
+        setTimeout(() => {
+          onRegisterSuccess();
+        }, 1500);
+      }
     } catch (error) {
       setErrors({ geral: "Erro ao cadastrar. Tente novamente mais tarde." });
     } finally {

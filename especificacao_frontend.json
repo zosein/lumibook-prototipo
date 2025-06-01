@@ -1,0 +1,225 @@
+{
+  "rotas_navegacao": [
+    {
+      "nome": "home",
+      "descricao": "Página inicial, mostra categorias e livros recentes"
+    },
+    {
+      "nome": "resultados",
+      "descricao": "Página de resultados de busca de livros"
+    },
+    {
+      "nome": "detalhes",
+      "descricao": "Página de detalhes de um livro"
+    },
+    {
+      "nome": "perfil",
+      "descricao": "Perfil do usuário (aluno/professor)"
+    },
+    {
+      "nome": "admin-perfil",
+      "descricao": "Painel do administrador/bibliotecário"
+    },
+    {
+      "nome": "cadastro",
+      "descricao": "Página de cadastro de novo usuário"
+    },
+    {
+      "nome": "login",
+      "descricao": "Página de login"
+    },
+    {
+      "nome": "reservas",
+      "descricao": "Página de reservas ativas e histórico"
+    }
+  ],
+  "componentes": {
+    "HomeContent": {
+      "descricao": "Exibe categorias e livros recentes",
+      "consome": ["CatalogService.getRecentBooks"],
+      "navega_para": ["resultados"]
+    },
+    "ResultList": {
+      "descricao": "Lista resultados de busca de livros",
+      "consome": ["CatalogService.searchBooks"],
+      "envia": {
+        "params": {
+          "q": "string (obrigatório)",
+          "tipo": "string (opcional, ex: 'Livro', 'E-book')",
+          "categoria": "string (opcional, ex: 'Ficção')",
+          "disponivel": "string (opcional, 'true' ou 'false')",
+          "ano": "string (opcional, ex: '2023')"
+        },
+        "token": "string (JWT)"
+      },
+      "resposta_esperada": [
+        {
+          "id": "string",
+          "titulo": "string",
+          "autor": "string",
+          "ano": "number",
+          "tipo": "string",
+          "categoria": "string",
+          "disponivel": "boolean",
+          "edicao": "string",
+          "idioma": "string",
+          "isbn": "string",
+          "localizacao": "string",
+          "exemplares": { "disponiveis": "number", "total": "number" }
+        }
+      ]
+    },
+    "BookDetails": {
+      "descricao": "Exibe detalhes de um livro e permite reservar",
+      "consome": [
+        "CatalogService.getBookById",
+        "CatalogService.getRelatedBooks",
+        "ReservationService.createReservation"
+      ],
+      "envia": {
+        "bookId": "string",
+        "token": "string"
+      },
+      "resposta_esperada": {
+        "id": "string",
+        "titulo": "string",
+        "autor": "string",
+        "ano": "number",
+        "tipo": "string",
+        "categoria": "string",
+        "isbn": "string",
+        "localizacao": "string",
+        "edicao": "string",
+        "idioma": "string",
+        "sinopse": "string",
+        "paginas": "number",
+        "disponivel": "boolean",
+        "editora": "string",
+        "exemplares": { "disponiveis": "number", "total": "number" },
+        "resumo": "string"
+      }
+    },
+    "StudentProfile": {
+      "descricao": "Perfil do aluno/professor, mostra estatísticas, reservas, multas",
+      "consome": [
+        "StatsService.getUserStats",
+        "ReservationService.getActiveReservations",
+        "ReservationService.cancelReservation",
+        "ReservationService.getReservationHistory",
+        "FineService.getActiveFines",
+        "FineService.payFine",
+        "FineService.getFineHistory",
+        "UserService.getUserById",
+        "avatarService.getUserAvatar"
+      ],
+      "envia": {
+        "userId": "string",
+        "token": "string"
+      },
+      "resposta_esperada": {
+        "stats": {
+          "livrosEmprestados": "number",
+          "livrosDisponiveis": "number",
+          "limiteConcorrente": "number",
+          "devolucoesPendentes": "number",
+          "reservasAtivas": "number",
+          "historicoEmprestimos": "number",
+          "ultimaAtualizacao": "string",
+          "fonte": "string",
+          "tipoUsuario": "string"
+        },
+        "reservations": [
+          {
+            "livroId": "string",
+            "exemplarId": "string",
+            "dataReserva": "string"
+          }
+        ],
+        "fines": [
+          {
+            "id": "string",
+            "descricao": "string",
+            "valor": "number",
+            "status": "string"
+          }
+        ]
+      }
+    },
+    "AdminProfile": {
+      "descricao": "Painel do administrador, mostra estatísticas do sistema",
+      "consome": [
+        "StatsService.getUserStats",
+        "UserService.getSystemActivities",
+        "profileService.getProfile"
+      ],
+      "envia": {
+        "userId": "string",
+        "token": "string"
+      }
+    },
+    "LoginPage": {
+      "descricao": "Formulário de login",
+      "consome": ["UserService.login"],
+      "envia": {
+        "identificador": "string",
+        "senha": "string"
+      },
+      "resposta_esperada": {
+        "token": "string",
+        "usuario": {
+          "id": "string",
+          "nome": "string",
+          "email": "string",
+          "papel": "string"
+        }
+      }
+    },
+    "RegisterPage": {
+      "descricao": "Formulário de cadastro",
+      "consome": ["UserService.register"],
+      "envia": {
+        "nome": "string",
+        "email": "string",
+        "senha": "string",
+        "matricula": "string (opcional)"
+      },
+      "resposta_esperada": {
+        "id": "string",
+        "nome": "string",
+        "email": "string",
+        "papel": "string"
+      }
+    }
+  },
+  "servicos": "(ver resposta anterior para detalhamento completo de todos os serviços, endpoints, payloads e respostas)",
+  "modularizacao": {
+    "pages": [
+      "HomePage",
+      "SearchResultsPage",
+      "DetailsPage",
+      "RegisterPage",
+      "LoginPage",
+      "StudentProfilePage",
+      "AdminProfilePage"
+    ],
+    "components": [
+      "Header",
+      "SearchBar",
+      "NavigationBar",
+      "HomeContent",
+      "ResultList",
+      "BookDetails",
+      "StudentProfile",
+      "AdminProfile"
+    ],
+    "services": [
+      "CatalogService",
+      "ReservationService",
+      "FineService",
+      "UserService",
+      "profileService",
+      "StatsService",
+      "avatarService"
+    ]
+  }
+} 

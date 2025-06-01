@@ -4,7 +4,12 @@ export const createReservation = async (dados, token) => {
   const res = await api.post("/reservas", dados, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.data;
+  return {
+    livroId: res.data.livroId || null,
+    exemplarId: res.data.exemplarId || null,
+    dataReserva: res.data.dataReserva || '',
+    ...res.data
+  };
 };
 
 export const cancelReservation = async (reservaId, token) => {
@@ -19,7 +24,12 @@ export const getActiveReservations = async (userId, token) => {
     params: { userId },
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.data;
+  return (res.data || []).map(r => ({
+    livroId: r.livroId || null,
+    exemplarId: r.exemplarId || null,
+    dataReserva: r.dataReserva || '',
+    ...r
+  }));
 };
 
 export const getReservationHistory = async (userId, token) => {
@@ -27,5 +37,10 @@ export const getReservationHistory = async (userId, token) => {
     params: { userId },
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.data;
+  return (res.data || []).map(r => ({
+    livroId: r.livroId || null,
+    exemplarId: r.exemplarId || null,
+    dataReserva: r.dataReserva || '',
+    ...r
+  }));
 }; 

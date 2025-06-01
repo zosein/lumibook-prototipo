@@ -21,7 +21,7 @@ export default function BookDetails({ setCurrentPage, bookId }) {
         const bookData = await CatalogService.getBookById(bookId, token);
         setLivro(bookData);
         const relatedBooks = await CatalogService.getRelatedBooks(bookId, token);
-        setObrasRelacionadas(relatedBooks);
+        setObrasRelacionadas(Array.isArray(relatedBooks) ? relatedBooks : []);
       } catch (err) {
         setError(err.message);
       } finally {

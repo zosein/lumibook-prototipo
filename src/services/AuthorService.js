@@ -9,7 +9,13 @@ export const searchAuthors = async (q, token) => {
 };
 
 export const createAuthor = async (dados, token) => {
-  const res = await api.post(`/autores`, dados, {
+  // Mapeamento para compatibilidade com a API
+  const dadosAPI = {
+    nome: dados.nome,
+    biografia: dados.bio || '',
+    nacionalidade: dados.nacionalidade || dados.nascimento || ''
+  };
+  const res = await api.post(`/autores`, dadosAPI, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;

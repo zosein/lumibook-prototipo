@@ -56,7 +56,7 @@ export default function ResultList({
 
   // Usar resultados da API em vez de dados mockados
   const filteredResults = useMemo(() => {
-    return searchResults;
+    return Array.isArray(searchResults) ? searchResults : [];
   }, [searchResults]);
 
   // Reset dos detalhes expandidos quando os resultados mudam

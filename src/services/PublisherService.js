@@ -9,7 +9,13 @@ export const searchPublishers = async (q, token) => {
 };
 
 export const createPublisher = async (dados, token) => {
-  const res = await api.post(`/editoras`, dados, {
+  // Mapeamento para compatibilidade com a API
+  const dadosAPI = {
+    nome: dados.nome,
+    cidade: dados.cidade || dados.endereco || '',
+    pais: dados.pais || dados.contato || ''
+  };
+  const res = await api.post(`/editoras`, dadosAPI, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
