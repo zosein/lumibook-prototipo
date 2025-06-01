@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Eye, EyeOff, Mail, Hash, Loader2, ArrowLeft, AlertCircle, Shield } from 'lucide-react';
 import { validateLogin, validators, getApiErrorMessage } from '../utils/Validation';
-import UserService from '../services/UserService';
+import * as UserService from '../services/UserService';
 
 export default function LoginPage({ setCurrentPage, onLogin }) {
   const [form, setForm] = useState({ usuario: '', senha: '' });

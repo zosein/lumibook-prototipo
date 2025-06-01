@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Book } from 'lucide-react';
+import CatalogService from '../services/CatalogService';
 
 export default function HomeContent({ setCurrentPage }) {
   const [recentBooks, setRecentBooks] = useState([]);
@@ -8,29 +9,15 @@ export default function HomeContent({ setCurrentPage }) {
   useEffect(() => {
     const fetchRecentBooks = async () => {
       try {
-        // Buscar livros recentes da API
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/livros/recentes?limit=3`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (response.ok) {
-          const books = await response.json();
-          setRecentBooks(books);
-        } else {
-          console.error('Erro ao buscar livros recentes');
-          setRecentBooks([]);
-        }
+        const token = localStorage.getItem('authToken');
+        const books = await CatalogService.getRecentBooks(token);
+        setRecentBooks(books);
       } catch (error) {
-        console.error('Erro de conexão ao buscar livros recentes:', error);
         setRecentBooks([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchRecentBooks();
   }, []);
 

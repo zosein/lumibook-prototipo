@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Info } from 'lucide-react';
+import CatalogService from '../services/CatalogService';
+import * as ReservationService from '../services/ReservationService';
 
 export default function BookDetails({ setCurrentPage, bookId }) {
   const [livro, setLivro] = useState(null);
@@ -14,46 +16,30 @@ export default function BookDetails({ setCurrentPage, bookId }) {
         setLoading(false);
         return;
       }
-
       try {
-        // Buscar detalhes do livro da API
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/livros/${bookId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Livro não encontrado: ${response.status}`);
-        }
-
-        const bookData = await response.json();
+        const token = localStorage.getItem('authToken');
+        const bookData = await CatalogService.getBookById(bookId, token);
         setLivro(bookData);
-
-        // Buscar obras relacionadas (por categoria)
-        const relatedResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/livros/relacionados/${bookId}?limit=4`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (relatedResponse.ok) {
-          const relatedBooks = await relatedResponse.json();
-          setObrasRelacionadas(relatedBooks);
-        }
-
+        const relatedBooks = await CatalogService.getRelatedBooks(bookId, token);
+        setObrasRelacionadas(relatedBooks);
       } catch (err) {
-        console.error('Erro ao buscar detalhes do livro:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
     fetchBookDetails();
   }, [bookId]);
+
+  const handleReserve = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await ReservationService.createReservation({ livroId: livro.id }, token);
+      alert('Reserva realizada com sucesso!');
+    } catch (err) {
+      alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   if (loading) {
     return (
@@ -156,7 +142,7 @@ export default function BookDetails({ setCurrentPage, bookId }) {
             
             <div className="flex gap-2">
               {livro.disponivel && (
-                <button className="px-4 py-2 bg-green-600 text-white rounded">Reservar</button>
+                <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={handleReserve}>Reservar</button>
               )}
               {livro.tipo === "E-book" && (
                 <button className="px-4 py-2 bg-blue-600 text-white rounded">Download (E-book)</button>

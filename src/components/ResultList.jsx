@@ -1,5 +1,7 @@
 import { List, Grid, ChevronDown, BookOpen, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import CatalogService from '../services/CatalogService';
+import * as ReservationService from '../services/ReservationService';
 
 export default function ResultList({ 
   searchQuery, 
@@ -21,43 +23,22 @@ export default function ResultList({
       setSearchResults([]);
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      // Construir query params para a API
-      const params = new URLSearchParams({
+      const token = localStorage.getItem('authToken');
+      const params = {
         q: searchQuery,
-        tipo: lastFilters.materialType !== 'Todos' ? lastFilters.materialType : '',
-        categoria: lastFilters.category !== 'Todas' ? lastFilters.category : '',
-        disponivel: lastFilters.availability !== 'Todos' ? (lastFilters.availability === 'Disponível' ? 'true' : 'false') : '',
-        ano: lastFilters.publicationYear !== 'Todos' ? lastFilters.publicationYear : '',
-      });
-
-      // Remover parâmetros vazios
-      Object.keys(Object.fromEntries(params)).forEach(key => {
-        if (!params.get(key)) {
-          params.delete(key);
-        }
-      });
-
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/livros/buscar?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro na busca: ${response.status}`);
-      }
-
-      const results = await response.json();
+        tipo: lastFilters.materialType !== 'Todos' ? lastFilters.materialType : undefined,
+        categoria: lastFilters.category !== 'Todas' ? lastFilters.category : undefined,
+        disponivel: lastFilters.availability !== 'Todos' ? (lastFilters.availability === 'Disponível' ? 'true' : 'false') : undefined,
+        ano: lastFilters.publicationYear !== 'Todos' ? lastFilters.publicationYear : undefined,
+      };
+      // Remove undefined
+      Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+      const results = await CatalogService.searchBooks(params, token);
       setSearchResults(results);
-
     } catch (err) {
-      console.error('Erro ao buscar livros:', err);
       setError('Erro ao realizar busca. Verifique a conexão com o servidor.');
       setSearchResults([]);
     } finally {
@@ -82,6 +63,16 @@ export default function ResultList({
   useEffect(() => {
     setDetailsOpen(null);
   }, [filteredResults]);
+
+  const handleReserve = async (bookId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await ReservationService.createReservation({ livroId: bookId }, token);
+      alert('Reserva realizada com sucesso!');
+    } catch (err) {
+      alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   return (
     <div className="p-4">
@@ -191,7 +182,10 @@ export default function ResultList({
                       Ver completo
                     </button>
                     {item.disponivel && (
-                      <button className="px-3 py-1 bg-green-600 text-white rounded text-sm">
+                      <button 
+                        className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                        onClick={() => handleReserve(item.id)}
+                      >
                         Reservar
                       </button>
                     )}

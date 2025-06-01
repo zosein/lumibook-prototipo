@@ -1,6 +1,6 @@
 // Serviço para comunicação com API de catalogação
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+import api from "./api";
 
 export class CatalogService {
   
@@ -23,45 +23,30 @@ export class CatalogService {
   // Catalogar nova obra
   static async catalogarObra(dadosObra, adminId) {
     try {
-      console.log('[API CALL] POST /api/admin/obras/catalogar', {
-        dados: dadosObra,
-        adminId
-      });
-
-      const response = await fetch(`${API_BASE_URL}/api/admin/obras/catalogar`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({
+      const response = await api.post(
+        "/admin/obras/catalogar",
+        {
           ...dadosObra,
           adminId,
           dataCatalogacao: new Date().toISOString(),
-          status: 'ativo'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      console.log('[API RESPONSE] Obra catalogada com sucesso:', result);
+          status: "ativo",
+        },
+        { headers: this.getHeaders() }
+      );
+      const result = response.data;
       return {
         success: true,
         data: result,
-        message: 'Obra catalogada com sucesso!'
+        message: "Obra catalogada com sucesso!",
       };
-
     } catch (error) {
-      console.error('[API ERROR] Erro ao catalogar obra:', error);
-      
-      // Tratar diferentes tipos de erro
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+      if (error.response && error.response.data && error.response.data.message) {
+        throw new Error(error.response.data.message);
       }
-      
-      throw new Error(error.message || 'Erro inesperado ao catalogar obra');
+      if (error.message && error.message.includes("Network Error")) {
+        throw new Error("Erro de conexão. Verifique sua internet e tente novamente.");
+      }
+      throw new Error(error.message || "Erro inesperado ao catalogar obra");
     }
   }
 
@@ -137,62 +122,39 @@ export class CatalogService {
   // Buscar tipos de obra da API
   static async getTiposObra() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/obras/tipos`, {
-        headers: this.getHeaders(false)
+      const response = await api.get("/obras/tipos", {
+        headers: this.getHeaders(false),
       });
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar tipos de obra');
-      }
-
-      const tipos = await response.json();
-      return tipos;
-
-    } catch (error) {      console.error('[API ERROR] Erro ao buscar tipos de obra:', error);
-      
-      // Não usar fallback - forçar uso da API
-      throw new Error('Não foi possível carregar tipos de obra. Verifique a conexão com a API.');
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        "Não foi possível carregar tipos de obra. Verifique a conexão com a API."
+      );
     }
   }
 
   // Buscar categorias da API
   static async getCategorias() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/obras/categorias`, {
-        headers: this.getHeaders(false)
+      const response = await api.get("/obras/categorias", {
+        headers: this.getHeaders(false),
       });
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar categorias');
-      }
-
-      const categorias = await response.json();
-      return categorias;
-
-    } catch (error) {      console.error('[API ERROR] Erro ao buscar categorias:', error);
-      
-      // Não usar fallback - forçar uso da API
-      throw new Error('Não foi possível carregar categorias. Verifique a conexão com a API.');
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        "Não foi possível carregar categorias. Verifique a conexão com a API."
+      );
     }
   }
 
   // Buscar editoras da API (para autocomplete)
-  static async getEditoras(termo = '') {
+  static async getEditoras(termo = "") {
     try {
-      const url = `${API_BASE_URL}/api/editoras/buscar?q=${encodeURIComponent(termo)}`;
-      const response = await fetch(url, {
-        headers: this.getHeaders(false)
+      const response = await api.get(`/editoras/buscar?q=${encodeURIComponent(termo)}`, {
+        headers: this.getHeaders(false),
       });
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar editoras');
-      }
-
-      const editoras = await response.json();
-      return editoras;
-
+      return response.data;
     } catch (error) {
-      console.warn('[API WARNING] Erro ao buscar editoras:', error);
       return [];
     }
   }
@@ -201,22 +163,13 @@ export class CatalogService {
   static async verificarDuplicata(isbn, titulo) {
     try {
       const params = new URLSearchParams();
-      if (isbn) params.append('isbn', isbn);
-      if (titulo) params.append('titulo', titulo);
-
-      const response = await fetch(`${API_BASE_URL}/api/obras/verificar-duplicata?${params}`, {
-        headers: this.getHeaders()
+      if (isbn) params.append("isbn", isbn);
+      if (titulo) params.append("titulo", titulo);
+      const response = await api.get(`/obras/verificar-duplicata?${params}`, {
+        headers: this.getHeaders(),
       });
-
-      if (!response.ok) {
-        throw new Error('Erro ao verificar duplicatas');
-      }
-
-      const resultado = await response.json();
-      return resultado;
-
+      return response.data;
     } catch (error) {
-      console.warn('[API WARNING] Erro ao verificar duplicata:', error);
       return { existe: false, obras: [] };
     }
   }
@@ -224,24 +177,49 @@ export class CatalogService {
   // Buscar obra por ISBN (para preenchimento automático)
   static async buscarPorISBN(isbn) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/obras/isbn/${isbn}`, {
-        headers: this.getHeaders(false)
+      const response = await api.get(`/obras/isbn/${isbn}`, {
+        headers: this.getHeaders(false),
       });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null; // ISBN não encontrado, não é erro
-        }
-        throw new Error('Erro ao buscar por ISBN');
-      }
-
-      const obra = await response.json();
-      return obra;
-
+      return response.data;
     } catch (error) {
-      console.warn('[API WARNING] Erro ao buscar por ISBN:', error);
+      if (error.response && error.response.status === 404) {
+        return null;
+      }
       return null;
     }
+  }
+
+  // Buscar detalhes de um livro
+  static async getBookById(bookId, token) {
+    const res = await api.get(`/livros/${bookId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.data;
+  }
+
+  // Buscar livros relacionados
+  static async getRelatedBooks(bookId, token) {
+    const res = await api.get(`/livros/relacionados/${bookId}?limit=4`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.data;
+  }
+
+  // Buscar livros recentes
+  static async getRecentBooks(token) {
+    const res = await api.get(`/livros/recentes?limit=3`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.data;
+  }
+
+  // Buscar livros (pesquisa)
+  static async searchBooks(params, token) {
+    const res = await api.get(`/livros/buscar`, {
+      params,
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.data;
   }
 }
 

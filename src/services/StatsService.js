@@ -1,8 +1,7 @@
 // Serviço para comunicação com API de estatísticas
 
 import StatsCache from '../utils/StatsCache';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+import api from "./api";
 
 export class StatsService {
   
@@ -24,31 +23,21 @@ export class StatsService {
     try {
       // Determinar endpoint baseado no tipo de usuário
       const endpoint = user.papel === 'professor' 
-        ? `${API_BASE_URL}/api/professores/${user.id}/estatisticas`
-        : `${API_BASE_URL}/api/alunos/${user.id}/estatisticas`;
+        ? `/professores/${user.id}/estatisticas`
+        : `/alunos/${user.id}/estatisticas`;
 
       // Headers com autenticação
       const headers = {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        'Content-Type': 'application/json',
-        'X-User-Type': user.papel,
-        'X-User-ID': user.id
+        Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        "Content-Type": "application/json",
+        "X-User-Type": user.papel,
+        "X-User-ID": user.id,
       };
 
       console.log(`[API] Buscando estatísticas: ${endpoint}`);
 
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers,
-        // Adicionar timeout
-        signal: AbortSignal.timeout(10000) // 10 segundos
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const statsData = await response.json();
+      const response = await api.get(endpoint, { headers });
+      const statsData = response.data;
 
       // Validar estrutura dos dados
       const validatedStats = StatsService.validateStatsData(statsData, user.papel);
@@ -120,26 +109,19 @@ export class StatsService {
   // Atualizar uma estatística específica (para uso em tempo real)
   static async updateStat(userId, statKey, newValue) {
     try {
-      const endpoint = `${API_BASE_URL}/api/usuarios/${userId}/estatisticas/${statKey}`;
-      
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ value: newValue })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao atualizar estatística: ${response.statusText}`);
-      }
-
-      // Limpar cache para forçar refresh na próxima consulta
+      const endpoint = `/usuarios/${userId}/estatisticas/${statKey}`;
+      const response = await api.put(
+        endpoint,
+        { value: newValue },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       StatsCache.remove(userId);
-
-      return await response.json();
-
+      return response.data;
     } catch (error) {
       console.error('Erro ao atualizar estatística:', error);
       throw error;
@@ -153,21 +135,14 @@ export class StatsService {
   // Buscar histórico de empréstimos
   static async getUserHistory(userId, userType, page = 1, limit = 10) {
     try {
-      const endpoint = `${API_BASE_URL}/api/${userType}s/${userId}/historico-emprestimos`;
-      
-      const response = await fetch(`${endpoint}?page=${page}&limit=${limit}`, {
+      const endpoint = `/${userType}s/${userId}/historico-emprestimos`;
+      const response = await api.get(`${endpoint}?page=${page}&limit=${limit}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json',
-        }
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          "Content-Type": "application/json",
+        },
       });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar histórico: ${response.statusText}`);
-      }
-
-      return await response.json();
-
+      return response.data;
     } catch (error) {
       console.error('Erro ao buscar histórico:', error);
       throw error;
