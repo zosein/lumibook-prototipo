@@ -76,7 +76,7 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
       console.log('Dados para API de login:', dadosAPI);
       
       // Realizar login através da API usando UserService
-      const userData = await UserService.login(dadosAPI);
+      const userData = await UserService.login(tipoInfo.identificadorAPI, form.senha);
       
       setSuccess("Login realizado! Redirecionando...");
       setTimeout(() => onLogin(userData), 1200);

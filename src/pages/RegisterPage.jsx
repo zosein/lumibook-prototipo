@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BookOpen, Eye, EyeOff, User, Mail, Phone, Loader2, ArrowLeft, Check, X, Hash, AlertCircle } from 'lucide-react';
-import { validateRegister, validators } from '../utils/Validation';
+import { validateRegister } from '../utils/Validation';
 
 const USER_ROLES = [
   { value: 'aluno', label: 'Aluno' },
@@ -15,6 +15,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
     papel: '',
     matricula: '',
     senha: '',
+    confirmarSenha: '',
   });
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState('');
@@ -79,7 +80,17 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
     }
   };
 
-  const getPasswordStrength = () => validators.getPasswordStrength(form.senha);
+  const getPasswordStrength = () => {
+    const senha = form.senha || '';
+    const checks = [
+      { label: 'Mínimo de 8 caracteres', test: senha.length >= 8 },
+      { label: 'Letra maiúscula', test: /[A-Z]/.test(senha) },
+      { label: 'Letra minúscula', test: /[a-z]/.test(senha) },
+      { label: 'Número', test: /\d/.test(senha) },
+      { label: 'Caractere especial', test: /[!@#$%^&*(),.?":{}|<>]/.test(senha) },
+    ];
+    return checks;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 animate-in fade-in duration-300">
@@ -328,6 +339,31 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                 )}
                 
                 {errors.senha && <p className="text-red-500 text-xs">{errors.senha}</p>}
+              </div>
+
+              {/* Campo confirmar senha */}
+              <div className="space-y-2">
+                <label htmlFor="confirmarSenha" className="text-gray-700 text-sm font-medium">
+                  Confirmar senha<span className="text-red-500 ml-1">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="confirmarSenha"
+                    name="confirmarSenha"
+                    type={showPassword ? "text" : "password"}
+                    value={form.confirmarSenha}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`w-full px-4 py-3 pl-10 border rounded-lg transition-all duration-200 ${
+                      errors.confirmarSenha 
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-200" 
+                        : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                    } focus:outline-none focus:ring-2`}
+                    placeholder="Repita sua senha"
+                    required
+                  />
+                </div>
+                {errors.confirmarSenha && <p className="text-red-500 text-xs">{errors.confirmarSenha}</p>}
               </div>
 
               {/* Botão de submit */}

@@ -1,8 +1,8 @@
 import api from "./api";
 
 // Autenticação
-export const login = async (email, senha) => {
-	const res = await api.post("/usuarios/login", { email, senha });
+export const login = async (identificador, senha) => {
+	const res = await api.post("/usuarios/login", { identificador, senha });
 	if (res.data.token) localStorage.setItem("authToken", res.data.token);
 	return res.data;
 };
