@@ -65,9 +65,8 @@ export const getActiveReservations = async (userId, token) => {
   }));
 };
 
-export const getReservationHistory = async (userId, token) => {
+export const getReservationHistory = async (token) => {
   const res = await api.get(`/reservations/historico`, {
-    params: { userId },
     headers: { Authorization: `Bearer ${token}` },
   });
   return (res.data || []).map(r => ({

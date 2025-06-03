@@ -20,9 +20,8 @@ export const returnLoan = async (emprestimoId, token) => {
   return res.data;
 };
 
-export const getActiveLoans = async (userId, token) => {
+export const getActiveLoans = async (token) => {
   const res = await api.get(`/emprestimos`, {
-    params: { userId },
     headers: { Authorization: `Bearer ${token}` },
   });
   return (res.data || []).map(e => ({
@@ -34,18 +33,20 @@ export const getActiveLoans = async (userId, token) => {
   }));
 };
 
-export const getLoanHistory = async (userId, token) => {
-  const res = await api.get(`/emprestimos/historico`, {
-    params: { userId },
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return (res.data || []).map(e => ({
-    livroId: e.livroId || null,
-    itens: e.itens || [],
-    dataEmprestimo: e.dataEmprestimo || '',
-    dataPrevistaDevolucao: e.dataPrevistaDevolucao || '',
-    ...e
-  }));
+export const getLoanHistory = async (userId, userType, token) => {
+  if (userType === 'aluno') {
+    const res = await api.get(`/alunos/${userId}/historico-emprestimos`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  } else if (userType === 'professor') {
+    const res = await api.get(`/professores/${userId}/historico-emprestimos`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  } else {
+    return [];
+  }
 };
 
 export const cancelLoan = async (emprestimoId, token) => {

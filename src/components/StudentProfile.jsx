@@ -87,7 +87,7 @@ function useUserProfile(user, isLoggedIn) {
 	return { profile, loading };
 }
 
-export default function StudentProfile({ user = { name: "ALUNO", avatar: null }, setCurrentPage, isLoggedIn }) {
+export default function StudentProfile({ user = { name: "ALUNO", avatar: null }, setCurrentPage, isLoggedIn, showReservations = true }) {
 	const { stats, loading, error } = useUserStats(user, isLoggedIn);
 	const { profile } = useUserProfile(user, isLoggedIn);
 
@@ -230,16 +230,18 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 						<StatsSection stats={stats} loading={loading} error={error} userType={user.papel} onRefresh={handleRefreshStats} />
 						<QuickActions handleNavigation={handleNavigation} />
 						<ProfileInfo user={user} profile={profile} />
-						<ReservationsSection
-							reservations={reservations}
-							loading={loadingReservations}
-							history={reservationHistory}
-							loadingHistory={loadingReservationHistory}
-							showHistory={showReservationHistory}
-							onCancel={handleCancelReservation}
-							onFetchHistory={fetchReservationHistory}
-							cancelingId={cancelingId}
-						/>
+						{showReservations && (
+							<ReservationsSection
+								reservations={reservations}
+								loading={loadingReservations}
+								history={reservationHistory}
+								loadingHistory={loadingReservationHistory}
+								showHistory={showReservationHistory}
+								onCancel={handleCancelReservation}
+								onFetchHistory={fetchReservationHistory}
+								cancelingId={cancelingId}
+							/>
+						)}
 						<FinesSection
 							fines={fines}
 							loading={loadingFines}
@@ -536,10 +538,14 @@ function NavItem({ icon: Icon, label, onClick }) {
 }
 
 function InfoCard({ label, value, valueColor = "text-gray-900" }) {
+	let displayValue = value;
+	if (typeof value === 'object' && value !== null) {
+		displayValue = '';
+	}
 	return (
 		<div className="bg-gray-50 rounded-lg p-3">
 			<span className="text-xs text-gray-600 uppercase tracking-wide">{label}</span>
-			<p className={`font-medium mt-1 ${valueColor}`}>{value}</p>
+			<p className={`font-medium mt-1 ${valueColor}`}>{displayValue}</p>
 		</div>
 	);
 }

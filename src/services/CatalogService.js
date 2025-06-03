@@ -123,7 +123,7 @@ const CatalogService = {
   // Buscar tipos de obra da API
   async getTiposObra() {
     try {
-      const response = await api.get("/books/types", {
+      const response = await api.get("/obras/tipos", {
         headers: this.getHeaders(false),
       });
       return response.data;
@@ -137,7 +137,7 @@ const CatalogService = {
   // Buscar categorias da API
   async getCategorias() {
     try {
-      const response = await api.get("/books/categories", {
+      const response = await api.get("/obras/categorias", {
         headers: this.getHeaders(false),
       });
       return response.data;
@@ -166,7 +166,7 @@ const CatalogService = {
       const params = new URLSearchParams();
       if (isbn) params.append("isbn", isbn);
       if (titulo) params.append("titulo", titulo);
-      const response = await api.get(`/books/check-duplicate?${params}`, {
+      const response = await api.get(`/obras/verificar-duplicata?${params}`, {
         headers: this.getHeaders(),
       });
       return response.data;
@@ -207,8 +207,8 @@ const CatalogService = {
   },
 
   // Buscar livros recentes
-  async getRecentBooks(token) {
-    const res = await api.get(`/books?recentes=true&limit=3`, {
+  async getRecentBooks(token, limit = 3) {
+    const res = await api.get(`/books/recentes?limit=${limit}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data;
@@ -241,7 +241,7 @@ const CatalogService = {
     });
     window._frontReqResLog = window._frontReqResLog || [];
     window._frontReqResLog.push({
-      endpoint: '/api/books',
+      endpoint: '/books',
       method: 'POST',
       req: { body: bookData, headers: { Authorization: 'Bearer ...' } },
       res: res.data
@@ -256,7 +256,7 @@ const CatalogService = {
     });
     window._frontReqResLog = window._frontReqResLog || [];
     window._frontReqResLog.push({
-      endpoint: `/api/books/${bookId}`,
+      endpoint: `/books/${bookId}`,
       method: 'PUT',
       req: { body: bookData, headers: { Authorization: 'Bearer ...' } },
       res: res.data
@@ -271,7 +271,7 @@ const CatalogService = {
     });
     window._frontReqResLog = window._frontReqResLog || [];
     window._frontReqResLog.push({
-      endpoint: `/api/books/${bookId}`,
+      endpoint: `/books/${bookId}`,
       method: 'DELETE',
       req: { headers: { Authorization: 'Bearer ...' } },
       res: res.data

@@ -1,4 +1,4 @@
-import { Home, Search, Clock, User, Shield } from 'lucide-react';
+import { Home, Search, Clock, User, Shield, BookOpen, FileText, Book, GraduationCap } from 'lucide-react';
 
 export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn, user }) {
   // Define os itens de navegação de acordo com o tipo de usuário
@@ -28,18 +28,7 @@ export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn,
 
   // Lógica de navegação centralizada para tratar regras de acesso
   const handleNavigation = (id) => {
-    // Admin só pode acessar áreas restritas se estiver autenticado
-    if (isLoggedIn && user?.papel === 'admin') {
-      if (id === 'admin-dashboard' || id === 'admin-perfil') {
-        setCurrentPage('admin-perfil');
-        return;
-      }
-      if (id === 'perfil') {
-        setCurrentPage('admin-perfil');
-        return;
-      }
-    }
-    // Usuário comum não pode acessar admin
+    // Busca por categoria
     if (id === 'admin-dashboard' || id === 'admin-perfil') {
       if (!isLoggedIn) {
         setCurrentPage('login');

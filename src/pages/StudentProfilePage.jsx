@@ -1,6 +1,7 @@
 import StudentProfile from "../components/StudentProfile";
+import UserReservationsPage from "./UserReservationsPage";
 
-export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn }) {
+export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn, showReservationsOnly }) {
   // Proteção de rota: só renderiza se estiver logado
   if (!isLoggedIn || !user) {
     console.warn('Acesso não autorizado ao perfil - redirecionando para login');
@@ -14,6 +15,11 @@ export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn })
       </div>
     );
   }
+
+  if (showReservationsOnly) {
+    return <UserReservationsPage setCurrentPage={setCurrentPage} user={user} isLoggedIn={isLoggedIn} />;
+  }
+
   // Formatar dados do usuário para o componente StudentProfile
   const userData = {
     name: user.nome || user.usuario || "USUÁRIO",
@@ -30,6 +36,7 @@ export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn })
       user={userData}
       setCurrentPage={setCurrentPage}
       isLoggedIn={isLoggedIn}
+      showReservations={false}
     />
   );
 }

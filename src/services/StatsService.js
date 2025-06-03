@@ -95,7 +95,14 @@ const StatsService = {
   // Buscar histórico de empréstimos
   async getUserHistory(userId, userType, page = 1, limit = 10) {
     try {
-      const endpoint = `/${userType}s/${userId}/historico-emprestimos`;
+      let endpoint = '';
+      if (userType === 'aluno') {
+        endpoint = `/alunos/${userId}/historico-emprestimos`;
+      } else if (userType === 'professor') {
+        endpoint = `/professores/${userId}/historico-emprestimos`;
+      } else {
+        throw new Error('Tipo de usuário inválido para histórico de empréstimos');
+      }
       const response = await api.get(`${endpoint}?page=${page}&limit=${limit}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,

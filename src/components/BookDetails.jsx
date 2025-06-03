@@ -132,7 +132,7 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Exemplares</h3>
-                <p>{livro.exemplares.disponiveis} disponíveis ({livro.exemplares.total} total)</p>
+                <p>{livro.exemplares?.disponiveis ?? 0} disponíveis ({livro.exemplares?.total ?? 0} total)</p>
               </div>
             </div>
             <div className="flex gap-2">

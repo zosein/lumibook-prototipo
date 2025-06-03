@@ -154,6 +154,22 @@ export default function App() {
   const hideLayoutRoutes = ['/login', '/cadastro', '/perfil', '/admin-perfil'];
   const showHeaderAndComponents = !hideLayoutRoutes.includes(location.pathname);
 
+  useEffect(() => {
+    // Verifica se há filtro de categoria salvo ao navegar para resultados
+    if (currentPage === 'resultados') {
+      const filtroCategoria = localStorage.getItem('lumibook_categoria_filtro');
+      if (filtroCategoria) {
+        setAdvancedFilters((prev) => ({
+          ...prev,
+          materialType: filtroCategoria,
+        }));
+        setLastSearchQuery(''); // Limpa busca textual
+        setIsSearchTriggered(true); // Dispara busca
+        localStorage.removeItem('lumibook_categoria_filtro');
+      }
+    }
+  }, [currentPage]);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* DEBUG: Informações de debug */}
@@ -206,7 +222,7 @@ export default function App() {
           <Route path="/perfil" element={<StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} />} />
           <Route path="/admin-perfil" element={<AdminProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} onLogout={handleLogout} />} />
           <Route path="/reservas" element={
-            <StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} />
+            <StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} showReservationsOnly={true} />
           } />
         </Routes>
       </div>

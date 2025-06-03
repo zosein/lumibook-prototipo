@@ -41,7 +41,7 @@ const useAdminStats = (user, isLoggedIn) => {
 
 			try {
 				// Usar StatsService ou endpoint específico para admin
-				const endpoint = `/admin/${user.id}/estatisticas`;
+				const endpoint = `/api/admin/${user.id}/estatisticas`;
 				const headers = {
 					Authorization: `Bearer ${localStorage.getItem("authToken")}`,
 					"Content-Type": "application/json",

@@ -21,6 +21,21 @@ export default function HomeContent({ setCurrentPage, navigateToDetails }) {
     fetchRecentBooks();
   }, []);
 
+  // Função para mapear categoria para o filtro correto
+  const categoriaParaMaterialType = {
+    'Livros': 'Livro',
+    'Periódicos': 'Periódico',
+    'E-books': 'E-book',
+    'Teses e Dissertações': 'Tese',
+  };
+
+  // Função para disparar busca por categoria
+  const handleCategoriaClick = (categoria) => {
+    // Salva o filtro no localStorage para ser lido pelo App
+    localStorage.setItem('lumibook_categoria_filtro', categoriaParaMaterialType[categoria] || 'Todos');
+    setCurrentPage('resultados');
+  };
+
   return (
     <div className="p-4">
       <div className="mb-6">
@@ -30,7 +45,7 @@ export default function HomeContent({ setCurrentPage, navigateToDetails }) {
             <div 
               key={categoria} 
               className="bg-white border border-gray-200 rounded-md p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50"
-              onClick={() => setCurrentPage('resultados')}
+              onClick={() => handleCategoriaClick(categoria)}
             >
               <Book size={24} className="text-blue-600 mb-2" />
               <span>{categoria}</span>
