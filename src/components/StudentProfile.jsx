@@ -9,12 +9,17 @@ import {
 	ArrowLeft,
 	AlertTriangle,
 	Users,
+	Loader2,
+	Menu,
 } from "lucide-react";
 import StatsService from "../services/StatsService";
 import { getUserById } from "../services/UserService";
+import { getAuthToken } from "../services/UserService";
 import { getUserAvatar } from "../services/avatarService";
 import * as ReservationService from '../services/ReservationService';
-import * as FineService from '../services/FineService';
+import FineService from '../services/FineService';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Hook para buscar estatísticas do usuário
 function useUserStats(user, isLoggedIn) {
@@ -33,7 +38,12 @@ function useUserStats(user, isLoggedIn) {
 			setError(null);
 			try {
 				const statsData = await StatsService.getUserStats(user, false);
-				setStats(statsData);
+				if (!statsData || typeof statsData !== 'object' || !('livrosDisponiveis' in statsData)) {
+					setError('Não foi possível carregar as estatísticas.');
+					setStats(null);
+				} else {
+					setStats(statsData);
+				}
 			} catch (err) {
 				setError(err.message || "Erro ao carregar estatísticas");
 				setStats(null);
@@ -59,11 +69,11 @@ function useUserProfile(user, isLoggedIn) {
 				return;
 			}
 			try {
-				const profileData = await getUserById(user.id, user.getAuthToken());
+				const profileData = await getUserById(user.id, getAuthToken());
 				setProfile(profileData);
 			} catch (error) {
 				setProfile({
-					avatar: await getUserAvatar(user.id, user.getAuthToken()),
+					avatar: await getUserAvatar(user.id, getAuthToken()),
 					statusConta: "ativa",
 					membroDesde: "Janeiro 2024",
 					tipoLogin: user.papel === "aluno" ? "matrícula" : "email",
@@ -80,6 +90,9 @@ function useUserProfile(user, isLoggedIn) {
 export default function StudentProfile({ user = { name: "ALUNO", avatar: null }, setCurrentPage, isLoggedIn }) {
 	const { stats, loading, error } = useUserStats(user, isLoggedIn);
 	const { profile } = useUserProfile(user, isLoggedIn);
+
+	// Estado do menu mobile
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	// Estados para reservas
 	const [reservations, setReservations] = useState([]);
@@ -124,8 +137,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 		async function fetchFines() {
 			setLoadingFines(true);
 			try {
-				const token = localStorage.getItem('authToken');
-				const data = await FineService.getActiveFines(user.id, token);
+				const data = await FineService.getUserFines(user.id);
 				setFines(data);
 			} catch {
 				setFines([]);
@@ -136,18 +148,27 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 		fetchFines();
 	}, [user.id]);
 
+	// Garantir nome correto
+	const displayName = user.name || user.nome || "ALUNO";
+
 	// Handlers auxiliares
 	const handleNavigation = (page) => setCurrentPage(page);
 	const handleRefreshStats = () => window.location.reload();
 
+	const [cancelingId, setCancelingId] = useState(null);
+	const [payingId, setPayingId] = useState(null);
+
 	const handleCancelReservation = async (reservationId) => {
+		setCancelingId(reservationId);
 		try {
 			const token = localStorage.getItem('authToken');
 			await ReservationService.cancelReservation(reservationId, token);
-			alert('Reserva cancelada!');
+			toast.success('Reserva cancelada!');
 			setReservations(reservations.filter(r => r.id !== reservationId));
 		} catch (err) {
-			alert('Erro ao cancelar reserva: ' + (err.response?.data?.message || err.message));
+			toast.error('Erro ao cancelar reserva: ' + (err.response?.data?.message || err.message));
+		} finally {
+			setCancelingId(null);
 		}
 	};
 
@@ -167,13 +188,16 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 	};
 
 	const handlePayFine = async (fineId) => {
+		setPayingId(fineId);
 		try {
 			const token = localStorage.getItem('authToken');
 			await FineService.payFine(fineId, token);
-			alert('Multa paga!');
+			toast.success('Multa paga!');
 			setFines(fines.filter(f => f.id !== fineId));
 		} catch (err) {
-			alert('Erro ao pagar multa: ' + (err.response?.data?.message || err.message));
+			toast.error('Erro ao pagar multa: ' + (err.response?.data?.message || err.message));
+		} finally {
+			setPayingId(null);
 		}
 	};
 
@@ -195,7 +219,9 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 	// Renderização principal
 	return (
 		<div className="min-h-screen flex flex-col bg-white animate-in fade-in duration-300">
-			<HeaderSection user={user} profile={profile} handleNavigation={handleNavigation} />
+			<ToastContainer position="top-right" autoClose={3000} hideProgressBar newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover />
+			<HeaderSection user={user} profile={profile} handleNavigation={handleNavigation} onOpenMenu={() => setMobileMenuOpen(true)} />
+			<MobileSidebar user={user} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} handleNavigation={(page) => { setMobileMenuOpen(false); handleNavigation(page); }} />
 			<div className="flex flex-1">
 				<Sidebar user={user} handleNavigation={handleNavigation} />
 				<main className="flex-1 p-4 sm:p-8 bg-gray-50">
@@ -212,6 +238,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 							showHistory={showReservationHistory}
 							onCancel={handleCancelReservation}
 							onFetchHistory={fetchReservationHistory}
+							cancelingId={cancelingId}
 						/>
 						<FinesSection
 							fines={fines}
@@ -221,6 +248,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 							showHistory={showFineHistory}
 							onPay={handlePayFine}
 							onFetchHistory={fetchFineHistory}
+							payingId={payingId}
 						/>
 					</div>
 				</main>
@@ -230,13 +258,17 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 }
 
 // Componentes auxiliares extraídos para clareza
-function HeaderSection({ user, profile, handleNavigation }) {
+function HeaderSection({ user, profile, handleNavigation, onOpenMenu }) {
+	const avatarUrl = profile?.avatar || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Usuário')}&background=3B82F6&color=fff&size=128`;
 	return (
-		<header className="w-full bg-blue-600 flex items-center justify-between px-8 py-3 shadow-lg">
+		<header className="w-full bg-blue-600 flex items-center justify-between px-4 sm:px-8 py-3 shadow-lg">
 			<div className="flex items-center gap-4">
+				<button className="sm:hidden flex items-center text-white p-2 mr-2" onClick={onOpenMenu} aria-label="Abrir menu">
+					<Menu size={28} />
+				</button>
 				<button
 					onClick={() => handleNavigation("home")}
-					className="flex items-center gap-2 text-white hover:text-blue-200 transition-all duration-200 p-2 rounded-lg hover:bg-blue-500 active:scale-95"
+					className="hidden sm:flex items-center gap-2 text-white hover:text-blue-200 transition-all duration-200 p-2 rounded-lg hover:bg-blue-500 active:scale-95"
 				>
 					<ArrowLeft size={20} />
 					<span className="hidden sm:inline font-medium">Voltar</span>
@@ -248,7 +280,7 @@ function HeaderSection({ user, profile, handleNavigation }) {
 			</div>
 			<div className="flex items-center gap-3">
 				<img
-					src={profile?.avatar || getUserAvatar(user.papel || "aluno")}
+					src={avatarUrl}
 					alt="Avatar"
 					className="w-8 h-8 rounded-full border-2 border-white"
 				/>
@@ -260,6 +292,7 @@ function HeaderSection({ user, profile, handleNavigation }) {
 }
 
 function Sidebar({ user, handleNavigation }) {
+	const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Usuário')}&background=3B82F6&color=fff&size=128`;
 	return (
 		<aside className="hidden sm:flex flex-col bg-blue-700 w-64 px-6 py-5 text-white shadow-lg">
 			<div className="mb-6">
@@ -273,7 +306,7 @@ function Sidebar({ user, handleNavigation }) {
 			</div>
 			<div className="flex flex-col items-center mb-6">
 				<img
-					src={user.avatar}
+					src={avatarUrl}
 					alt="Avatar do usuário"
 					className="w-16 h-16 rounded-full border-2 border-white"
 				/>
@@ -333,18 +366,22 @@ function StatsSection({ stats, loading, error, userType, onRefresh }) {
 function QuickActions({ handleNavigation }) {
 	return (
 		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-			<QuickAction icon={<Search size={24} />} title="Pesquisar Livros" description="Encontre livros no acervo" onClick={() => handleNavigation("resultados")} />
-			<QuickAction icon={<BookOpen size={24} />} title="Meus Empréstimos" description="Veja suas obras emprestadas" onClick={() => handleNavigation("reservas")} />
-			<QuickAction icon={<Undo2 size={24} />} title="Renovar Empréstimos" description="Renove o prazo das suas obras" onClick={() => {}} />
+			<QuickAction icon={<Search size={24} />} title="Pesquisar Livros" description="Encontre livros no acervo" onClick={() => handleNavigation("resultados")}
+				ariaLabel="Pesquisar livros" />
+			<QuickAction icon={<BookOpen size={24} />} title="Meus Empréstimos" description="Veja suas obras emprestadas" onClick={() => handleNavigation("reservas")}
+				ariaLabel="Ver meus empréstimos" />
+			<QuickAction icon={<Undo2 size={24} />} title="Renovar Empréstimos" description="Renove o prazo das suas obras" onClick={null} disabled ariaLabel="Renovação indisponível" />
 		</div>
 	);
 }
 
-function QuickAction({ icon, title, description, onClick }) {
+function QuickAction({ icon, title, description, onClick, disabled, ariaLabel }) {
 	return (
 		<button
 			onClick={onClick}
-			className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
+			className={`bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+			disabled={disabled}
+			aria-label={ariaLabel}
 		>
 			<div className="flex items-center gap-3 mb-2">
 				<div className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200">
@@ -367,18 +404,34 @@ function ProfileInfo({ user, profile }) {
 				Informações do Perfil
 			</h2>
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				<InfoCard label="Nome completo" value={user.name} />
+				<InfoCard label="Nome completo" value={user.name || user.nome} />
 				<InfoCard label="Email" value={user.email} />
 				{user.matricula && <InfoCard label="Matrícula" value={user.matricula} />}
 				<InfoCard label="Tipo de usuário" value={user.papel === "professor" ? "Professor" : "Estudante"} valueColor={user.papel === "professor" ? "text-purple-600 font-medium" : "text-blue-600 font-medium"} />
-				<InfoCard label="Status da conta" value={profile?.statusConta || "Carregando..."} valueColor="text-green-600 font-medium" />
-				<InfoCard label="Membro desde" value={profile?.membroDesde || "Carregando..."} />
+				<InfoCard label="Status da conta" value={profile?.statusConta ? profile.statusConta : <Loader2 className="animate-spin inline w-4 h-4 text-gray-400" />} valueColor="text-green-600 font-medium" />
+				<InfoCard label="Membro desde" value={profile?.membroDesde ? profile.membroDesde : <Loader2 className="animate-spin inline w-4 h-4 text-gray-400" />} />
 			</div>
 		</div>
 	);
 }
 
-function ReservationsSection({ reservations, loading, history, loadingHistory, showHistory, onCancel, onFetchHistory }) {
+// Adicionar componente Modal simples
+function Modal({ open, onClose, title, children }) {
+	if (!open) return null;
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+			<div className="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative animate-in fade-in duration-200">
+				<button className="absolute top-2 right-2 text-gray-400 hover:text-gray-700" onClick={onClose} aria-label="Fechar modal">×</button>
+				<h3 className="font-semibold mb-4 text-lg">{title}</h3>
+				<div>{children}</div>
+			</div>
+		</div>
+	);
+}
+
+// Atualizar ReservationsSection para usar Modal
+function ReservationsSection({ reservations, loading, history, loadingHistory, showHistory, onCancel, onFetchHistory, cancelingId }) {
+	const [modalOpen, setModalOpen] = useState(false);
 	return (
 		<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
 			<h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -395,37 +448,38 @@ function ReservationsSection({ reservations, loading, history, loadingHistory, s
 							<div>
 								<span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva})</span>
 							</div>
-							<button className="px-3 py-1 bg-red-600 text-white rounded text-sm" onClick={() => onCancel(res.id)}>Cancelar</button>
+							<button className="px-3 py-1 bg-red-600 text-white rounded text-sm" onClick={() => onCancel(res.id)} disabled={cancelingId === res.id}>
+								{cancelingId === res.id ? 'Cancelando...' : 'Cancelar'}
+							</button>
 						</li>
 					))}
 				</ul>
 			)}
-			<button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded" onClick={onFetchHistory}>Ver histórico de reservas</button>
-			{showHistory && (
-				<div className="mt-4">
-					<h3 className="font-semibold mb-2">Histórico de Reservas</h3>
-					{loadingHistory ? (
-						<div>Carregando histórico...</div>
-					) : history.length === 0 ? (
-						<div>Nenhuma reserva anterior encontrada.</div>
-					) : (
-						<ul className="divide-y">
-							{history.map((res) => (
-								<li key={res.id} className="py-2 flex justify-between items-center">
-									<div>
-										<span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva} - {res.status})</span>
-									</div>
-								</li>
-							))}
-						</ul>
-					)}
-				</div>
-			)}
+			<button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded" onClick={() => { onFetchHistory(); setModalOpen(true); }}>Ver histórico de reservas</button>
+			<Modal open={modalOpen && showHistory} onClose={() => setModalOpen(false)} title="Histórico de Reservas">
+				{loadingHistory ? (
+					<div>Carregando histórico...</div>
+				) : history.length === 0 ? (
+					<div>Nenhuma reserva anterior encontrada.</div>
+				) : (
+					<ul className="divide-y">
+						{history.map((res) => (
+							<li key={res.id} className="py-2 flex justify-between items-center">
+								<div>
+									<span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva} - {res.status})</span>
+								</div>
+							</li>
+						))}
+					</ul>
+				)}
+			</Modal>
 		</div>
 	);
 }
 
-function FinesSection({ fines, loading, history, loadingHistory, showHistory, onPay, onFetchHistory }) {
+// Atualizar FinesSection para usar Modal
+function FinesSection({ fines, loading, history, loadingHistory, showHistory, onPay, onFetchHistory, payingId }) {
+	const [modalOpen, setModalOpen] = useState(false);
 	return (
 		<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
 			<h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -442,32 +496,31 @@ function FinesSection({ fines, loading, history, loadingHistory, showHistory, on
 							<div>
 								<span className="font-medium">{fine.descricao}</span> <span className="text-sm text-gray-500">R$ {fine.valor}</span>
 							</div>
-							<button className="px-3 py-1 bg-green-600 text-white rounded text-sm" onClick={() => onPay(fine.id)}>Pagar</button>
+							<button className="px-3 py-1 bg-green-600 text-white rounded text-sm" onClick={() => onPay(fine.id)} disabled={payingId === fine.id}>
+								{payingId === fine.id ? 'Pagando...' : 'Pagar'}
+							</button>
 						</li>
 					))}
 				</ul>
 			)}
-			<button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded" onClick={onFetchHistory}>Ver histórico de multas</button>
-			{showHistory && (
-				<div className="mt-4">
-					<h3 className="font-semibold mb-2">Histórico de Multas</h3>
-					{loadingHistory ? (
-						<div>Carregando histórico...</div>
-					) : history.length === 0 ? (
-						<div>Nenhuma multa anterior encontrada.</div>
-					) : (
-						<ul className="divide-y">
-							{history.map((fine) => (
-								<li key={fine.id} className="py-2 flex justify-between items-center">
-									<div>
-										<span className="font-medium">{fine.descricao}</span> <span className="text-sm text-gray-500">R$ {fine.valor} - {fine.status}</span>
-									</div>
-								</li>
-							))}
-						</ul>
-					)}
-				</div>
-			)}
+			<button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded" onClick={() => { onFetchHistory(); setModalOpen(true); }}>Ver histórico de multas</button>
+			<Modal open={modalOpen && showHistory} onClose={() => setModalOpen(false)} title="Histórico de Multas">
+				{loadingHistory ? (
+					<div>Carregando histórico...</div>
+				) : history.length === 0 ? (
+					<div>Nenhuma multa anterior encontrada.</div>
+				) : (
+					<ul className="divide-y">
+						{history.map((fine) => (
+							<li key={fine.id} className="py-2 flex justify-between items-center">
+								<div>
+									<span className="font-medium">{fine.descricao}</span> <span className="text-sm text-gray-500">R$ {fine.valor} - {fine.status}</span>
+								</div>
+							</li>
+						))}
+					</ul>
+				)}
+			</Modal>
 		</div>
 	);
 }
@@ -475,7 +528,7 @@ function FinesSection({ fines, loading, history, loadingHistory, showHistory, on
 // Componentes utilitários
 function NavItem({ icon: Icon, label, onClick }) {
 	return (
-		<button className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-blue-600 transition-all duration-200 text-sm w-full text-left group active:scale-95" onClick={onClick}>
+		<button className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-blue-600 transition-all duration-200 text-sm w-full text-left group active:scale-95" onClick={onClick} aria-label={label}>
 			<Icon size={18} className="text-blue-200 group-hover:text-white transition-colors duration-200" />
 			<span className="group-hover:text-white transition-colors duration-200">{label}</span>
 		</button>
@@ -549,8 +602,8 @@ function StatsGrid({ stats, userType }) {
 	};
 	return (
 		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			{getStatsCards().map((card) => (
-				<StatCard key={card.key} {...card} />
+			{getStatsCards().map(({ key, ...card }) => (
+				<StatCard key={key} {...card} />
 			))}
 		</div>
 	);
@@ -591,14 +644,50 @@ function StatsLoadingGrid() {
 }
 
 function StatsErrorState({ error, onRetry }) {
+	let msg = error;
+	if (msg && msg.match(/duplicate key|E11000|stack|index|collection|Mongo/gi)) {
+		msg = 'Erro ao carregar dados do perfil. Tente novamente.';
+	}
 	return (
 		<div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
 			<div className="flex items-center justify-center gap-2 text-red-600 mb-2">
 				<AlertTriangle size={24} />
 				<h3 className="font-semibold">Erro ao carregar estatísticas</h3>
 			</div>
-			<p className="text-red-700 text-sm mb-4">{error}</p>
+			<p className="text-red-700 text-sm mb-4">{msg}</p>
 			<button onClick={onRetry} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">Tentar novamente</button>
+		</div>
+	);
+}
+
+// Novo componente MobileSidebar
+function MobileSidebar({ user, open, onClose, handleNavigation }) {
+	const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Usuário')}&background=3B82F6&color=fff&size=128`;
+	return (
+		<div className={`fixed inset-0 z-50 transition-all duration-300 ${open ? 'block' : 'pointer-events-none'}`}
+			style={{ display: open ? 'block' : 'none' }}>
+			{/* Overlay */}
+			<div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose}></div>
+			{/* Drawer */}
+			<aside className={`absolute left-0 top-0 h-full w-64 bg-blue-700 text-white shadow-lg transform ${open ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300`}>
+				<div className="flex flex-col items-center py-6">
+					<img
+						src={avatarUrl}
+						alt="Avatar do usuário"
+						className="w-16 h-16 rounded-full border-2 border-white mb-2"
+					/>
+					<span className="font-semibold text-lg mb-1">{user.name}</span>
+					{user.matricula && <span className="text-xs text-blue-200">Mat: {user.matricula}</span>}
+					{user.email && <span className="text-xs text-blue-200">{user.email}</span>}
+				</div>
+				<nav className="flex flex-col gap-2 px-6 mt-4">
+					<span className="text-xs mb-1 text-blue-200">BIBLIOTECA</span>
+					<NavItem icon={Home} label="Início" onClick={() => handleNavigation("home")}/>
+					<NavItem icon={Search} label="Pesquisar" onClick={() => handleNavigation("resultados")}/>
+					<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("reservas")}/>
+				</nav>
+				<button className="absolute top-2 right-2 text-white text-2xl" onClick={onClose} aria-label="Fechar menu">×</button>
+			</aside>
 		</div>
 	);
 }

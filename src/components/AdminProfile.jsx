@@ -41,7 +41,7 @@ const useAdminStats = (user, isLoggedIn) => {
 
 			try {
 				// Usar StatsService ou endpoint específico para admin
-				const endpoint = `/api/admin/${user.id}/estatisticas`;
+				const endpoint = `/admin/${user.id}/estatisticas`;
 				const headers = {
 					Authorization: `Bearer ${localStorage.getItem("authToken")}`,
 					"Content-Type": "application/json",
@@ -97,10 +97,8 @@ export default function AdminProfile({
 	isLoggedIn,
 	onLogout,
 }) {
-	// Hook para buscar estatísticas da API
+	// Hooks devem estar no topo
 	const { stats, loading, error } = useAdminStats(user, isLoggedIn);
-
-	// Estado para controlar a aba ativa
 	const [activeSection, setActiveSection] = useState("dashboard");
 
 	// Validação de segurança: só renderiza se estiver logado como admin
@@ -157,6 +155,8 @@ export default function AdminProfile({
 				);
 		}
 	};
+
+	const podeGerenciarLivros = user.papel === 'admin' || user.papel === 'bibliotecario';
 
 	return (
 		<div className="min-h-screen flex flex-col bg-white animate-in fade-in duration-300">
@@ -278,6 +278,13 @@ export default function AdminProfile({
 						</div>
 
 						{/* Conteúdo da seção ativa - REMOVIDO O CONTAINER DA BARRA DE PESQUISA */}
+						{podeGerenciarLivros && (
+							<div className="flex gap-4 mb-4">
+								<button className="bg-blue-600 text-white px-4 py-2 rounded-lg" onClick={() => setCurrentPage('catalogar')}>Catalogar Livro</button>
+								<button className="bg-purple-600 text-white px-4 py-2 rounded-lg" onClick={() => setCurrentPage('gerenciarAcervo')}>Gerenciar Acervo</button>
+							</div>
+						)}
+
 						{renderActiveSection()}
 					</div>
 				</main>
@@ -502,8 +509,8 @@ function AdminStatsGrid({ stats }) {
 
 	return (
 		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			{statsCards.map((card) => (
-				<AdminStatCard key={card.key} {...card} />
+			{statsCards.map(({ key, ...rest }) => (
+				<AdminStatCard key={key} {...rest} />
 			))}
 		</div>
 	);
@@ -643,7 +650,8 @@ function CatalogacaoSection({ adminId }) {
 	// Submissão do formulário
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		const resultado = await submitForm();
+		const token = localStorage.getItem('authToken');
+		const resultado = await submitForm(token);
 
 		if (resultado.success) {
 			console.log("Obra catalogada com sucesso:", resultado.data);
@@ -708,7 +716,11 @@ function CatalogacaoSection({ adminId }) {
 			{errors.geral && (
 				<div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl flex items-center gap-2">
 					<AlertTriangle size={20} />
-					<span>{errors.geral}</span>
+					<span>{
+						typeof errors.geral === 'string' && errors.geral.match(/duplicate key|E11000|stack|index|collection|Mongo/gi)
+							? 'Erro ao realizar operação. Tente novamente.'
+							: errors.geral
+					}</span>
 				</div>
 			)}
 
@@ -1118,11 +1130,15 @@ function ConfiguracoesSection({ user, onLogout }) {
 	useEffect(() => {
 		const loadProfile = async () => {
 			try {
-				const profileData = await getProfile(user.id, "admin");
+				const token = localStorage.getItem("authToken");
+				const profileData = await getProfile(token);
 				setProfile(profileData);
 			} catch (error) {
 				console.error("Erro ao carregar perfil do admin:", error);
-				setProfile(getProfile(user.id, "admin"));
+				try {
+					const token = localStorage.getItem("authToken");
+					setProfile(await getProfile(token));
+				} catch {}
 			}
 		};
 

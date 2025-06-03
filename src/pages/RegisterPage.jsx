@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BookOpen, Eye, EyeOff, User, Mail, Phone, Loader2, ArrowLeft, Check, X, Hash, AlertCircle } from 'lucide-react';
 import { validateRegister } from '../utils/Validation';
+import * as UserService from '../services/UserService';
 
 const USER_ROLES = [
   { value: 'aluno', label: 'Aluno' },
@@ -8,6 +9,7 @@ const USER_ROLES = [
 ];
 
 export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
+  // Estado do formulário de cadastro
   const [form, setForm] = useState({
     nome: '',
     email: '',
@@ -22,51 +24,76 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const allowedRoles = ['aluno', 'professor'];
+
+  // Atualiza campos do formulário e limpa erros
   const handleChange = e => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
     setErrors(prev => ({ ...prev, [name]: undefined }));
     setSuccess('');
-    
-    // Limpar matrícula se mudar de aluno para professor
+    // Limpa matrícula se mudar para professor
     if (name === 'papel' && value === 'professor') {
       setForm(prev => ({ ...prev, matricula: '' }));
     }
   };
 
+  // Validação ao sair do campo
   const handleBlur = () => {
     const validationErrors = validateRegister(form);
     setErrors(prev => ({ ...prev, ...validationErrors }));
   };
 
+  // Submissão do formulário de cadastro
   const handleSubmit = async e => {
     e.preventDefault();
-    const validationErrors = validateRegister(form);
-    
+    let papelSeguro = allowedRoles.includes(form.papel) ? form.papel : 'aluno';
+    const validationErrors = validateRegister({ ...form, papel: papelSeguro });
+    // Validações específicas por papel
+    if (papelSeguro === 'professor') {
+      if (!form.email) {
+        validationErrors.email = 'Email institucional obrigatório para professores';
+      } else if (
+        !form.email.endsWith('@universitas.edu.br') &&
+        !form.email.endsWith('@instituicao.edu')
+      ) {
+        validationErrors.email = 'Professores devem usar email institucional (@universitas.edu.br ou @instituicao.edu)';
+      }
+    }
+    if (papelSeguro === 'aluno') {
+      if (!form.matricula) {
+        validationErrors.matricula = 'Matrícula obrigatória para alunos';
+      }
+      if (form.email &&
+        !form.email.endsWith('@universitas.edu.br') &&
+        !form.email.endsWith('@instituicao.edu')
+      ) {
+        validationErrors.email = 'Se preencher, o email deve ser institucional (@universitas.edu.br ou @instituicao.edu)';
+      }
+    }
     if (Object.keys(validationErrors).length) {
       setErrors(validationErrors);
       setSuccess('');
       return;
     }
-    
     setSubmitting(true);
     setErrors({});
-    
     try {
-      // Preparar dados para API - garantir todos os campos necessários
-      const dadosAPI = {
+      // Chama a API de cadastro
+      const resposta = await UserService.register({
         nome: form.nome,
-        email: form.email,
-        telefone: form.telefone || "",
-        papel: form.papel || "",
+        email: form.email || undefined,
+        telefone: form.telefone,
+        papel: papelSeguro,
         senha: form.senha,
-        matricula: form.papel === 'aluno' ? (form.matricula || "") : ""
-      };
-      // Simulação de cadastro - substituir pela chamada real da API
-      // const resposta = await UserService.register(dadosAPI); // Exemplo real
-      const resposta = { success: true }; // Simulação
+        matricula: papelSeguro === 'aluno' ? form.matricula : undefined
+      });
       if (resposta.success === false || resposta.message) {
-        setErrors({ geral: resposta.message || "Erro ao cadastrar. Tente novamente mais tarde." });
+        let msg = resposta.message || "Erro ao cadastrar. Tente novamente mais tarde.";
+        if (msg.includes('duplicate key') && msg.includes('email')) {
+          msg = "Já existe um usuário cadastrado com este email.";
+        }
+        setErrors({ geral: msg });
       } else {
         setSuccess("Cadastro realizado com sucesso! Redirecionando para o login...");
         setTimeout(() => {
@@ -74,12 +101,17 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
         }, 1500);
       }
     } catch (error) {
-      setErrors({ geral: "Erro ao cadastrar. Tente novamente mais tarde." });
+      let msg = error?.response?.data?.message || "Erro ao cadastrar. Tente novamente mais tarde.";
+      if (msg.includes('duplicate key') && msg.includes('email')) {
+        msg = "Já existe um usuário cadastrado com este email.";
+      }
+      setErrors({ geral: msg });
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Retorna lista de requisitos de senha para feedback visual
   const getPasswordStrength = () => {
     const senha = form.senha || '';
     const checks = [
@@ -94,7 +126,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 animate-in fade-in duration-300">
-      {/* Header simplificado */}
+      {/* Header visual do sistema */}
       <div className="w-full h-20 bg-blue-600 flex items-center px-8 shadow-lg">
         <div className="flex items-center gap-4">
           <button 
@@ -109,12 +141,10 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
           </div>
         </div>
       </div>
-
-      {/* Container principal */}
+      {/* Formulário centralizado de cadastro */}
       <div className="flex items-center justify-center min-h-[calc(100vh-5rem)] p-4">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
-            {/* Header do card */}
             <div className="bg-gradient-to-r from-blue-600 to-sky-600 p-8 text-center">
               <div className="flex items-center justify-center gap-2 text-white text-3xl font-bold mb-2">
                 <BookOpen size={32} />
@@ -122,10 +152,17 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
               </div>
               <p className="text-blue-100 text-lg">Crie sua conta</p>
             </div>
-
-            {/* Formulário */}
+            {/* Mensagem de contexto para o usuário */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm mb-4">
+              <span className="block text-blue-700 font-semibold mb-1">Importante:</span>
+              <span className="block text-blue-700">Alunos: login apenas com matrícula. Professores: login apenas com email institucional (@universitas.edu.br).</span>
+            </div>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm mb-4">
+              <span className="block text-orange-700 font-semibold mb-1">Atenção:</span>
+              <span className="block text-orange-700">O cadastro de bibliotecários é feito apenas por administradores, em área restrita.</span>
+            </div>
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              {/* Mensagens de feedback */}
+              {/* Mensagens de erro e sucesso */}
               {errors.geral && (
                 <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-center text-sm animate-pulse">
                   {errors.geral}
@@ -137,8 +174,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                   {success}
                 </div>
               )}
-
-              {/* Campo nome */}
+              {/* Campos do formulário */}
               <div className="space-y-2">
                 <label htmlFor="nome" className="text-gray-700 text-sm font-medium">
                   Nome completo<span className="text-red-500 ml-1">*</span>
@@ -162,11 +198,9 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                 </div>
                 {errors.nome && <p className="text-red-500 text-xs">{errors.nome}</p>}
               </div>
-
-              {/* Campo email */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-gray-700 text-sm font-medium">
-                  Email institucional<span className="text-red-500 ml-1">*</span>
+                  Email {form.papel === 'professor' ? <span className="text-red-500 ml-1">*</span> : <span className="text-gray-400 ml-1">(opcional para alunos)</span>}
                 </label>
                 <div className="relative">
                   <input
@@ -181,15 +215,13 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                         ? "border-red-300 focus:border-red-500 focus:ring-red-200" 
                         : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
                     } focus:outline-none focus:ring-2`}
-                    placeholder="nome@universitas.edu.br"
-                    required
+                    placeholder={form.papel === 'professor' ? "nome@universitas.edu.br" : "(opcional para alunos)"}
+                    required={form.papel === 'professor'}
                   />
                   <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
                 {errors.email && <p className="text-red-500 text-xs">{errors.email}</p>}
               </div>
-
-              {/* Campo telefone */}
               <div className="space-y-2">
                 <label htmlFor="telefone" className="text-gray-700 text-sm font-medium">
                   Telefone<span className="text-red-500 ml-1">*</span>
@@ -214,8 +246,6 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                 </div>
                 {errors.telefone && <p className="text-red-500 text-xs">{errors.telefone}</p>}
               </div>
-
-              {/* Campo papel */}
               <div className="space-y-2">
                 <label htmlFor="papel" className="text-gray-700 text-sm font-medium">
                   Você é...<span className="text-red-500 ml-1">*</span>
@@ -240,8 +270,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                 </select>
                 {errors.papel && <p className="text-red-500 text-xs">{errors.papel}</p>}
               </div>
-
-              {/* Campo matrícula - APENAS para ALUNOS */}
+              {/* Campo matrícula só aparece para alunos */}
               {form.papel === 'aluno' && (
                 <div className="space-y-2 animate-in slide-in-from-top duration-300">
                   <label htmlFor="matricula" className="text-gray-700 text-sm font-medium">
@@ -265,7 +294,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                     <Hash size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   </div>
                   {errors.matricula && <p className="text-red-500 text-xs">{errors.matricula}</p>}
-                  {/* NOVA INFORMAÇÃO IMPORTANTE */}
+                  {/* Alerta importante para alunos */}
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                     <AlertCircle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
                     <div className="text-xs text-amber-700">
@@ -275,8 +304,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                   </div>
                 </div>
               )}
-
-              {/* Informação sobre login para professores */}
+              {/* Informação para professores */}
               {form.papel === 'professor' && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 animate-in slide-in-from-top duration-300">
                   <div className="flex items-start gap-2">
@@ -288,8 +316,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                   </div>
                 </div>
               )}
-
-              {/* Campo senha com indicadores */}
+              {/* Campo senha com indicadores de força */}
               <div className="space-y-2">
                 <label htmlFor="senha" className="text-gray-700 text-sm font-medium">
                   Senha<span className="text-red-500 ml-1">*</span>
@@ -319,8 +346,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                
-                {/* Indicadores de força da senha */}
+                {/* Feedback visual de força da senha */}
                 {form.senha && (
                   <div className="space-y-1">
                     {getPasswordStrength().map((check, index) => (
@@ -337,11 +363,9 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                     ))}
                   </div>
                 )}
-                
                 {errors.senha && <p className="text-red-500 text-xs">{errors.senha}</p>}
               </div>
-
-              {/* Campo confirmar senha */}
+              {/* Confirmação de senha */}
               <div className="space-y-2">
                 <label htmlFor="confirmarSenha" className="text-gray-700 text-sm font-medium">
                   Confirmar senha<span className="text-red-500 ml-1">*</span>
@@ -365,7 +389,6 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                 </div>
                 {errors.confirmarSenha && <p className="text-red-500 text-xs">{errors.confirmarSenha}</p>}
               </div>
-
               {/* Botão de submit */}
               <button
                 type="submit"
@@ -381,7 +404,6 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
                   'Criar conta'
                 )}
               </button>
-
               {/* Link para login */}
               <div className="text-center pt-4 border-t border-gray-100">
                 <button

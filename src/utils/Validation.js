@@ -206,76 +206,53 @@ export const ERROR_MESSAGES = {
   ERRO_CONEXAO: "Erro de conexão. Verifique sua internet."
 };
 
-// Funções de validação específicas para formulários
-export const validateLogin = (form) => {
+// Funções utilitárias para validação de formulários e regras de negócio
+
+// Valida dados do formulário de cadastro
+export function validateRegister(form) {
   const errors = {};
-
-  // Validar campo usuário (email ou matrícula)
-  if (!form.usuario?.trim()) {
-    errors.usuario = ERROR_MESSAGES.CAMPO_OBRIGATORIO;
-  } else {
-    const tipoInfo = validators.determinarTipoUsuarioLogin(form.usuario.trim());
-    if (!tipoInfo) {
-      errors.usuario = ERROR_MESSAGES.LOGIN_FORMATO_INVALIDO;
-    }
+  const allowedRoles = ['aluno', 'professor'];
+  if (!allowedRoles.includes(form.papel)) {
+    errors.papel = 'Tipo de usuário inválido.';
   }
-
-  // Validar senha
-  if (!form.senha?.trim()) {
-    errors.senha = ERROR_MESSAGES.SENHA_REQUIRED;
+  if (!form.nome || form.nome.length < 3) {
+    errors.nome = 'Nome deve ter pelo menos 3 caracteres';
   }
-
-  return errors;
-};
-
-export const validateRegister = (form) => {
-  const errors = {};
-
-  // Nome
-  if (!form.nome?.trim()) {
-    errors.nome = ERROR_MESSAGES.NOME_REQUIRED;
-  } else if (!validators.isNomeValido(form.nome.trim())) {
-    errors.nome = ERROR_MESSAGES.NOME_INVALIDO;
-  }
-
-  // Email (para professores) ou Matrícula (para alunos)
   if (form.papel === 'professor') {
-    if (!form.email?.trim()) {
-      errors.email = ERROR_MESSAGES.EMAIL_INSTITUCIONAL_REQUIRED;
-    } else if (!validators.isEmailInstitucional(form.email.trim())) {
-      errors.email = ERROR_MESSAGES.EMAIL_INSTITUCIONAL_INVALIDO;
-    }
-  } else if (form.papel === 'aluno') {
-    if (!form.matricula?.trim()) {
-      errors.matricula = ERROR_MESSAGES.MATRICULA_REQUIRED;
-    } else if (!validators.isMatriculaValida(form.matricula.trim())) {
-      errors.matricula = ERROR_MESSAGES.MATRICULA_INVALIDA;
+    // Professores devem usar email institucional
+    if (!form.email || (!form.email.endsWith('@universitas.edu.br') && !form.email.endsWith('@instituicao.edu')) ) {
+      errors.email = 'Email institucional obrigatório para professores';
     }
   }
-
-  // Papel
-  if (!form.papel) {
-    errors.papel = ERROR_MESSAGES.PAPEL_REQUIRED;
-  } else if (!validators.isPapelValido(form.papel, ['aluno', 'professor'])) {
-    errors.papel = ERROR_MESSAGES.PAPEL_INVALIDO;
+  if (form.papel === 'aluno') {
+    // Matrícula obrigatória para alunos
+    if (!form.matricula || form.matricula.length < 7) {
+      errors.matricula = 'Matrícula obrigatória (mín. 7 números)';
+    }
   }
-
-  // Senha
-  if (!form.senha?.trim()) {
-    errors.senha = ERROR_MESSAGES.SENHA_REQUIRED;
-  } else if (!validators.isSenhaValida(form.senha)) {
-    errors.senha = ERROR_MESSAGES.SENHA_INVALIDA;
+  if (!form.telefone || form.telefone.length < 10) {
+    errors.telefone = 'Telefone inválido';
   }
-
-  // Confirmar senha
-  if (!form.confirmarSenha?.trim()) {
-    errors.confirmarSenha = ERROR_MESSAGES.CAMPO_OBRIGATORIO;
-  } else if (form.senha !== form.confirmarSenha) {
-    errors.confirmarSenha = ERROR_MESSAGES.SENHAS_NAO_COINCIDEM;
+  if (!form.senha || form.senha.length < 8) {
+    errors.senha = 'Senha deve ter pelo menos 8 caracteres';
   }
-
+  if (form.senha !== form.confirmarSenha) {
+    errors.confirmarSenha = 'As senhas não coincidem';
+  }
   return errors;
-};
+}
+
+// Valida login (aceita matrícula ou email institucional)
+export function validateLogin({ login, senha }) {
+  const errors = {};
+  if (!login) {
+    errors.login = 'Informe matrícula ou email institucional';
+  }
+  if (!senha) {
+    errors.senha = 'Informe a senha';
+  }
+  return errors;
+}
 
 // Configurações de tipos de usuário
 export const USER_ROLES = [

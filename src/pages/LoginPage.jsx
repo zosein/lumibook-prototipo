@@ -40,13 +40,13 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
   };
 
   const handleBlur = () => {
-    const validationErrors = validateLogin(form);
+    const validationErrors = validateLogin({ login: form.usuario, senha: form.senha });
     setErrors(prev => ({ ...prev, ...validationErrors }));
   };
 
   const handleSubmit = async e => {
     e.preventDefault();
-    const validationErrors = validateLogin(form);
+    const validationErrors = validateLogin({ login: form.usuario, senha: form.senha });
     
     if (Object.keys(validationErrors).length) {
       setErrors(validationErrors);
@@ -56,13 +56,14 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
     
     setSubmitting(true);
     setErrors({});
+    setSuccess('');
     
     try {
       // Determinar tipo de usuário baseado no input (RESTRITIVO)
       const tipoInfo = validators.determinarTipoUsuarioLogin(form.usuario);
       
       if (!tipoInfo) {
-        setErrors({ geral: "Formato de login inválido. Use matrícula (alunos), email institucional (professores) ou admin@universitas.edu.br (administrador)." });
+        setErrors({ geral: "Apenas emails institucionais são aceitos para professores. Alunos devem usar matrícula." });
         return;
       }
         // Preparar dados para API com tipo de usuário determinístico
@@ -78,11 +79,21 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
       // Realizar login através da API usando UserService
       const userData = await UserService.login(tipoInfo.identificadorAPI, form.senha);
       
+      if (inputInfo?.tipoUsuario === 'admin' && (!userData || userData.papel !== 'admin')) {
+        setErrors({ geral: 'Acesso restrito: apenas administradores autorizados podem acessar esta área.' });
+        setSubmitting(false);
+        return;
+      }
+      
       setSuccess("Login realizado! Redirecionando...");
       setTimeout(() => onLogin(userData), 1200);
       
     } catch (error) {
-      setErrors({ geral: getApiErrorMessage(error) });
+      let msg = getApiErrorMessage(error);
+      if (msg.match(/duplicate key|E11000|stack|index|collection|Mongo/gi)) {
+        msg = 'Erro ao fazer login. Tente novamente.';
+      }
+      setErrors({ geral: msg });
     } finally {
       setSubmitting(false);
     }
@@ -141,11 +152,11 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
                 <div className="space-y-2 text-blue-700">
                   <div className="flex items-center gap-2">
                     <Hash size={14} className="text-green-600" />
-                    <span><strong>Alunos:</strong> Digite apenas sua matrícula</span>
+                    <span><strong>Alunos:</strong> Use apenas sua matrícula (números).</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail size={14} className="text-blue-600" />
-                    <span><strong>Professores:</strong> Digite seu email institucional</span>
+                    <span><strong>Professores:</strong> Use seu email institucional (@universitas.edu.br).</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Shield size={14} className="text-red-600" />

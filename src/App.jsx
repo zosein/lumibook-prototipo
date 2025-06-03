@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import DetailsPage from './pages/DetailsPage';
@@ -10,13 +11,18 @@ import SearchBar from './components/SearchBar';
 import NavigationBar from './components/NavigationBar';
 import AdminProfilePage from './pages/AdminProfilePage';
 import DebugInfo from './components/DebugInfo';
+import { getProfile } from './services/profileService';
+
+function DetailsPageWrapper({ setCurrentPage, navigateToDetails }) {
+  const { bookId } = useParams();
+  return <DetailsPage setCurrentPage={setCurrentPage} bookId={bookId} navigateToDetails={navigateToDetails} />;
+}
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchQuery, setLastSearchQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
-  const [selectedBookId, setSelectedBookId] = useState(null);
   const [isSearchTriggered, setIsSearchTriggered] = useState(false);
   
   // Estados de autenticação
@@ -30,42 +36,54 @@ export default function App() {
     availability: 'Todos'
   });
   
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   // Função de navegação otimizada com useCallback para performance
   const handlePageChange = useCallback((page, options = {}) => {
-    // CORREÇÃO: Lógica específica para admin
-    console.log('Navegando para:', page, 'Usuário:', user?.papel);
-    
-    // Se admin tentar acessar 'perfil', redirecionar para 'admin-perfil'
-    if (page === 'perfil' && isLoggedIn && user?.papel === 'admin') {
-      setCurrentPage('admin-perfil');
-      return;
+    switch (page) {
+      case 'home':
+        navigate('/');
+        break;
+      case 'resultados':
+        navigate('/resultados');
+        break;
+      case 'detalhes':
+        break;
+      case 'perfil':
+        if (!isLoggedIn) {
+          navigate('/login');
+        } else if (user?.papel === 'admin') {
+          navigate('/admin-perfil');
+        } else {
+          navigate('/perfil');
+        }
+        break;
+      case 'admin-perfil':
+        if (!isLoggedIn || user?.papel !== 'admin') {
+          navigate('/login');
+        } else {
+          navigate('/admin-perfil');
+        }
+        break;
+      case 'cadastro':
+        navigate('/cadastro');
+        break;
+      case 'login':
+        navigate('/login');
+        break;
+      default:
+        navigate('/');
     }
-    
-    // Se não-admin tentar acessar admin-perfil, redirecionar para login
-    if (page === 'admin-perfil' && (!isLoggedIn || user?.papel !== 'admin')) {
-      setCurrentPage('login');
-      return;
+    if (filterOpen) {
+      setFilterOpen(false);
     }
-    
-    // Proteção de rota: redirecionar para login se tentar acessar perfil sem estar logado
-    if (page === 'perfil' && !isLoggedIn) {
-      setCurrentPage('login');
-      return;
-    }
-    
-    // Preservar estado de pesquisa quando necessário
     if (page !== 'resultados' && !options.preserveSearch) {
       setIsSearchTriggered(false);
       setLastSearchQuery('');
     }
-    
-    // Fechar filtros automaticamente ao navegar
-    if (filterOpen) {
-      setFilterOpen(false);
-    }
-    
     setCurrentPage(page);
-  }, [filterOpen, isLoggedIn, user?.papel]);
+  }, [filterOpen, isLoggedIn, user?.papel, navigate]);
   
   const handleSearch = useCallback(() => {
     setLastSearchQuery(searchQuery);
@@ -74,32 +92,57 @@ export default function App() {
   }, [searchQuery]);
   
   const navigateToDetails = useCallback((bookId) => {
-    setSelectedBookId(bookId);
-    setCurrentPage('detalhes');
-  }, []);
+    if (!bookId) {
+      alert('ID do livro inválido!');
+      return;
+    }
+    navigate(`/detalhes/${bookId}`);
+  }, [navigate]);
 
-  // Funções de autenticação com transições suaves
+  // Persistência de login
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    const userData = localStorage.getItem('userData');
+    if (token && !isLoggedIn) {
+      if (userData) {
+        setUser(JSON.parse(userData));
+        setIsLoggedIn(true);
+      }
+      // Opcional: atualizar dados do usuário com a API, mas sem deslogar imediatamente
+      getProfile(token)
+        .then((userDataApi) => {
+          setIsLoggedIn(true);
+          setUser(userDataApi);
+          localStorage.setItem('userData', JSON.stringify(userDataApi));
+        })
+        .catch(() => {
+          // Só faz logout se o token realmente for inválido
+          setIsLoggedIn(false);
+          setUser(null);
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
+        });
+    }
+  }, [isLoggedIn]);
+
+  // Salvar usuário no localStorage ao logar
   const handleLogin = useCallback((userData) => {
-    console.log('Login realizado para:', userData);
     setIsLoggedIn(true);
     setUser(userData);
-    
-    // CORREÇÃO: Redirecionar admin para sua página específica
+    localStorage.setItem('userData', JSON.stringify(userData));
     if (userData.papel === 'admin') {
-      setTimeout(() => {
-        setCurrentPage('admin-perfil');
-      }, 100);
+      navigate('/admin-perfil');
     } else {
-      // Animação suave para home após login de usuários normais
-      setTimeout(() => {
-        setCurrentPage('home');
-      }, 100);
+      navigate('/perfil');
     }
-  }, []);
+  }, [navigate]);
 
+  // Limpar usuário do localStorage ao deslogar
   const handleLogout = useCallback(() => {
     setIsLoggedIn(false);
     setUser(null);
+    localStorage.removeItem('userData');
+    localStorage.removeItem('authToken');
     setCurrentPage('home');
   }, []);
 
@@ -107,134 +150,9 @@ export default function App() {
     setCurrentPage('login');
   }, []);
 
-  const renderPage = () => {
-    try {
-      switch (currentPage) {
-        case 'home':
-          return (
-            <div className="animate-in fade-in duration-300">
-              <HomePage 
-                setCurrentPage={handlePageChange} 
-                navigateToDetails={navigateToDetails} 
-              />
-            </div>
-          );
-        case 'resultados':
-          return (
-            <div className="animate-in fade-in duration-300">
-              <SearchResultsPage
-                setCurrentPage={handlePageChange}
-                searchQuery={lastSearchQuery}
-                currentInputQuery={searchQuery}
-                advancedFilters={advancedFilters}
-                navigateToDetails={navigateToDetails}
-                isSearchTriggered={isSearchTriggered}
-              />
-            </div>
-          );
-        case 'detalhes':
-          return (
-            <div className="animate-in fade-in duration-300">
-              <DetailsPage 
-                setCurrentPage={handlePageChange} 
-                bookId={selectedBookId} 
-              />
-            </div>
-          );
-        case 'perfil':
-          // Proteção adicional: só renderiza se estiver logado
-          if (!isLoggedIn) {
-            console.warn('Tentativa de acesso ao perfil sem login - redirecionando...');
-            setTimeout(() => setCurrentPage('login'), 0);
-            return (
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                  <p className="text-gray-600">Redirecionando para login...</p>
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div className="animate-in slide-in-from-right duration-400">
-              <StudentProfilePage 
-                setCurrentPage={handlePageChange}
-                user={user}
-                isLoggedIn={isLoggedIn}
-              />
-            </div>
-          );
-        case 'cadastro':
-          return (
-            <div className="animate-in slide-in-from-bottom duration-400">
-              <RegisterPage 
-                setCurrentPage={handlePageChange} 
-                onRegisterSuccess={handleRegisterSuccess}
-              />
-            </div>
-          );
-        case 'login':
-          return (
-            <div className="animate-in slide-in-from-bottom duration-400">
-              <LoginPage 
-                setCurrentPage={handlePageChange}
-                onLogin={handleLogin}
-              />
-            </div>
-          );
-        case 'admin-perfil':
-          // Proteção adicional: só renderiza se for admin
-          if (!isLoggedIn || user?.papel !== 'admin') {
-            console.warn('Tentativa de acesso ao painel admin sem permissão - redirecionando...');
-            setTimeout(() => setCurrentPage('login'), 0);
-            return (
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                  <p className="text-red-600">Acesso negado. Redirecionando...</p>
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div className="animate-in slide-in-from-right duration-400">
-              <AdminProfilePage 
-                setCurrentPage={handlePageChange}
-                user={user}
-                isLoggedIn={isLoggedIn}
-                onLogout={handleLogout}
-              />
-            </div>
-          );
-        default:
-          return (
-            <div className="animate-in fade-in duration-300">
-              <HomePage 
-                setCurrentPage={handlePageChange}
-                navigateToDetails={navigateToDetails} 
-              />
-            </div>
-          );
-      }
-    } catch (error) {
-      console.error("Erro ao renderizar página:", error);
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
-          <div className="text-center p-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Oops! Algo deu errado</h2>
-            <p className="text-gray-600 mb-4">Erro ao carregar a página.</p>
-            <button 
-              onClick={() => handlePageChange('home')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Voltar ao Início
-            </button>
-          </div>
-        </div>
-      );
-    }
-  };
-
   // Verificar se deve mostrar Header, SearchBar e NavigationBar
-  const showHeaderAndComponents = !['login', 'cadastro', 'perfil', 'admin-perfil'].includes(currentPage);
+  const hideLayoutRoutes = ['/login', '/cadastro', '/perfil', '/admin-perfil'];
+  const showHeaderAndComponents = !hideLayoutRoutes.includes(location.pathname);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
@@ -265,7 +183,32 @@ export default function App() {
         </div>
       )}
       <div className="flex-1 overflow-auto">
-        {renderPage()}
+        <Routes>
+          <Route path="/" element={
+            <HomePage 
+              setCurrentPage={handlePageChange} 
+              navigateToDetails={navigateToDetails} 
+            />
+          } />
+          <Route path="/resultados" element={
+            <SearchResultsPage
+              setCurrentPage={handlePageChange}
+              searchQuery={lastSearchQuery}
+              currentInputQuery={searchQuery}
+              advancedFilters={advancedFilters}
+              navigateToDetails={navigateToDetails}
+              isSearchTriggered={isSearchTriggered}
+            />
+          } />
+          <Route path="/detalhes/:bookId" element={<DetailsPageWrapper setCurrentPage={handlePageChange} navigateToDetails={navigateToDetails} />} />
+          <Route path="/cadastro" element={<RegisterPage setCurrentPage={handlePageChange} onRegisterSuccess={handleRegisterSuccess} />} />
+          <Route path="/login" element={<LoginPage setCurrentPage={handlePageChange} onLogin={handleLogin} />} />
+          <Route path="/perfil" element={<StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} />} />
+          <Route path="/admin-perfil" element={<AdminProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} onLogout={handleLogout} />} />
+          <Route path="/reservas" element={
+            <StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} />
+          } />
+        </Routes>
       </div>
       {showHeaderAndComponents && (
         <div className="animate-in slide-in-from-bottom duration-300">
@@ -278,4 +221,4 @@ export default function App() {
       )}
     </div>
   );
-}
+}   

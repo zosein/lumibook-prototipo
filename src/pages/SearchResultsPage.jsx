@@ -1,4 +1,5 @@
 import ResultList from '../components/ResultList';
+import { useEffect } from 'react';
 
 export default function SearchResultsPage({ 
   setCurrentPage, 
@@ -8,6 +9,13 @@ export default function SearchResultsPage({
   navigateToDetails, 
   isSearchTriggered 
 }) {
+  // Busca automática ao montar, se não houver busca
+  useEffect(() => {
+    if (!isSearchTriggered && !searchQuery) {
+      setCurrentPage('resultados', { preserveSearch: true });
+    }
+  }, [isSearchTriggered, searchQuery, setCurrentPage]);
+
   return (
     <ResultList
       setCurrentPage={setCurrentPage}

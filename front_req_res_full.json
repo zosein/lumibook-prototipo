@@ -1,0 +1,326 @@
+[
+  {
+    "endpoint": "/api/usuarios/login",
+    "method": "POST",
+    "req": { "body": { "identificador": "usuario@exemplo.com", "senha": "senha123" } },
+    "res": { "token": "jwt_token", "usuario": { "id": "1", "nome": "Usuário Exemplo", "email": "usuario@exemplo.com", "papel": "aluno" } }
+  },
+  {
+    "endpoint": "/api/usuarios/register",
+    "method": "POST",
+    "req": { "body": { "nome": "Novo Usuário", "email": "novo@exemplo.com", "telefone": "11999999999", "papel": "aluno", "senha": "senhaForte123", "matricula": "2023123456" } },
+    "res": { "id": "2", "nome": "Novo Usuário", "email": "novo@exemplo.com", "papel": "aluno" }
+  },
+  {
+    "endpoint": "/api/usuarios/perfil",
+    "method": "GET",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "1", "nome": "Usuário Exemplo", "email": "usuario@exemplo.com", "papel": "aluno", "statusConta": "ativa" }
+  },
+  {
+    "endpoint": "/api/usuarios/perfil",
+    "method": "PATCH",
+    "req": { "body": { "nome": "Usuário Atualizado", "telefone": "11988887777" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "1", "nome": "Usuário Atualizado", "telefone": "11988887777" }
+  },
+  {
+    "endpoint": "/api/usuarios/:userId/atividades",
+    "method": "GET",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": [ { "tipo": "emprestimo", "livroId": "456", "titulo": "Livro Teste", "data": "2024-03-20", "status": "ativo" } ]
+  },
+  {
+    "endpoint": "/api/usuarios/:userId/avatar",
+    "method": "GET",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": { "avatarUrl": "https://exemplo.com/avatars/user1.jpg" }
+  },
+  {
+    "endpoint": "/api/bibliotecarios",
+    "method": "POST",
+    "req": { "body": { "nome": "Maria Bibliotecária", "email": "maria@universitas.edu.br", "senha": "senhaSegura123" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "123", "nome": "Maria Bibliotecária", "email": "maria@universitas.edu.br", "papel": "bibliotecario" }
+  },
+  {
+    "endpoint": "/api/books",
+    "method": "GET",
+    "req": { "params": { "search": "palavra", "category": "Engenharia", "available": true } },
+    "res": []
+  },
+  {
+    "endpoint": "/api/books",
+    "method": "POST",
+    "req": { "body": { "titulo": "Livro Teste", "autor": "Autor Exemplo", "isbn": "9781234567890", "ano": 2024, "tipo": "Livro", "categoria": "Engenharia", "editora": "Editora Exemplo", "idioma": "Português", "paginas": 200, "resumo": "Resumo do livro.", "localizacao": "Estante A1", "exemplares": 3 }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "456", "titulo": "Livro Teste", "autor": "Autor Exemplo", "isbn": "9781234567890", "ano": 2024, "tipo": "Livro", "categoria": "Engenharia", "editora": "Editora Exemplo", "idioma": "Português", "paginas": 200, "resumo": "Resumo do livro.", "localizacao": "Estante A1", "exemplares": 3 }
+  },
+  {
+    "endpoint": "/api/books/:id",
+    "method": "GET",
+    "req": {},
+    "res": { "id": "456", "titulo": "Livro Teste", "autor": "Autor Exemplo" }
+  },
+  {
+    "endpoint": "/api/books/:id",
+    "method": "PUT",
+    "req": { "body": { "titulo": "Livro Editado" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "456", "titulo": "Livro Editado" }
+  },
+  {
+    "endpoint": "/api/books/:id",
+    "method": "PATCH",
+    "req": { "body": { "categoria": "Matemática" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "456", "categoria": "Matemática" }
+  },
+  {
+    "endpoint": "/api/books/:id",
+    "method": "DELETE",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": { "message": "Livro excluído com sucesso" }
+  },
+  {
+    "endpoint": "/api/books/recentes",
+    "method": "GET",
+    "req": {},
+    "res": [ { "id": "789", "titulo": "Livro Novo", "ano": 2024 } ]
+  },
+  {
+    "endpoint": "/api/books/relacionados/:bookId",
+    "method": "GET",
+    "req": {},
+    "res": [ { "id": "101", "titulo": "Livro Relacionado" } ]
+  },
+  {
+    "endpoint": "/api/books/isbn/:isbn",
+    "method": "GET",
+    "req": {},
+    "res": { "id": "456", "titulo": "Livro Teste", "isbn": "9781234567890" }
+  },
+  {
+    "endpoint": "/api/books/search",
+    "method": "GET",
+    "req": { "params": { "q": "palavra" } },
+    "res": []
+  },
+  {
+    "endpoint": "/api/autores",
+    "method": "GET",
+    "req": {},
+    "res": [ { "id": "1", "nome": "Machado de Assis" } ]
+  },
+  {
+    "endpoint": "/api/autores",
+    "method": "POST",
+    "req": { "body": { "nome": "Novo Autor", "biografia": "", "nacionalidade": "" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "2", "nome": "Novo Autor" }
+  },
+  {
+    "endpoint": "/api/autores/:id",
+    "method": "GET",
+    "req": {},
+    "res": { "id": "1", "nome": "Machado de Assis" }
+  },
+  {
+    "endpoint": "/api/autores/:id",
+    "method": "PUT",
+    "req": { "body": { "nome": "Autor Editado" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "1", "nome": "Autor Editado" }
+  },
+  {
+    "endpoint": "/api/autores/:id",
+    "method": "PATCH",
+    "req": { "body": { "biografia": "Nova bio" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "1", "biografia": "Nova bio" }
+  },
+  {
+    "endpoint": "/api/autores/:id",
+    "method": "DELETE",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": { "message": "Autor removido" }
+  },
+  {
+    "endpoint": "/api/autores/buscar",
+    "method": "GET",
+    "req": { "params": { "q": "Machado" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": [ { "id": "1", "nome": "Machado de Assis" } ]
+  },
+  {
+    "endpoint": "/api/editoras",
+    "method": "GET",
+    "req": {},
+    "res": [ { "id": "1", "nome": "Atlas" } ]
+  },
+  {
+    "endpoint": "/api/editoras",
+    "method": "POST",
+    "req": { "body": { "nome": "Nova Editora", "cidade": "São Paulo", "pais": "Brasil" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "2", "nome": "Nova Editora" }
+  },
+  {
+    "endpoint": "/api/editoras/:id",
+    "method": "GET",
+    "req": {},
+    "res": { "id": "1", "nome": "Atlas" }
+  },
+  {
+    "endpoint": "/api/editoras/:id",
+    "method": "PUT",
+    "req": { "body": { "nome": "Editora Editada" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "1", "nome": "Editora Editada" }
+  },
+  {
+    "endpoint": "/api/editoras/:id",
+    "method": "PATCH",
+    "req": { "body": { "cidade": "Rio de Janeiro" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "1", "cidade": "Rio de Janeiro" }
+  },
+  {
+    "endpoint": "/api/editoras/:id",
+    "method": "DELETE",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": { "message": "Editora removida" }
+  },
+  {
+    "endpoint": "/api/editoras/buscar",
+    "method": "GET",
+    "req": { "params": { "q": "Atlas" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": [ { "id": "1", "nome": "Atlas" } ]
+  },
+  {
+    "endpoint": "/api/reservations",
+    "method": "GET",
+    "req": { "params": { "userId": "1" } },
+    "res": []
+  },
+  {
+    "endpoint": "/api/reservations",
+    "method": "POST",
+    "req": { "body": { "userId": "1", "bookId": "456" } },
+    "res": { "id": "789", "userId": "1", "bookId": "456", "status": "pendente" }
+  },
+  {
+    "endpoint": "/api/reservations/:id",
+    "method": "GET",
+    "req": {},
+    "res": { "id": "789", "userId": "1", "bookId": "456", "status": "pendente" }
+  },
+  {
+    "endpoint": "/api/reservations/:id",
+    "method": "PATCH",
+    "req": { "body": { "status": "retirada" } },
+    "res": { "id": "789", "status": "retirada" }
+  },
+  {
+    "endpoint": "/api/reservations/:id",
+    "method": "DELETE",
+    "req": {},
+    "res": { "message": "Reserva cancelada com sucesso" }
+  },
+  {
+    "endpoint": "/api/reservations/user/:userId",
+    "method": "GET",
+    "req": {},
+    "res": []
+  },
+  {
+    "endpoint": "/api/reservations/book/:bookId",
+    "method": "GET",
+    "req": {},
+    "res": []
+  },
+  {
+    "endpoint": "/api/reservations/historico",
+    "method": "GET",
+    "req": { "params": { "userId": "1" } },
+    "res": []
+  },
+  {
+    "endpoint": "/api/emprestimos",
+    "method": "GET",
+    "req": {},
+    "res": []
+  },
+  {
+    "endpoint": "/api/emprestimos",
+    "method": "POST",
+    "req": { "body": { "userId": "1", "bookId": "456" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "e1", "userId": "1", "bookId": "456", "status": "ativo" }
+  },
+  {
+    "endpoint": "/api/emprestimos/:id",
+    "method": "GET",
+    "req": {},
+    "res": { "id": "e1", "userId": "1", "bookId": "456", "status": "ativo" }
+  },
+  {
+    "endpoint": "/api/emprestimos/:id",
+    "method": "PUT",
+    "req": { "body": { "status": "devolvido" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "e1", "status": "devolvido" }
+  },
+  {
+    "endpoint": "/api/emprestimos/:id",
+    "method": "DELETE",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": { "message": "Empréstimo removido" }
+  },
+  {
+    "endpoint": "/api/fines",
+    "method": "GET",
+    "req": {},
+    "res": []
+  },
+  {
+    "endpoint": "/api/fines",
+    "method": "POST",
+    "req": { "body": { "userId": "1", "value": 10, "reason": "Atraso" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "f1", "userId": "1", "value": 10, "status": "pendente" }
+  },
+  {
+    "endpoint": "/api/fines/:id",
+    "method": "GET",
+    "req": {},
+    "res": { "id": "f1", "userId": "1", "value": 10, "status": "pendente" }
+  },
+  {
+    "endpoint": "/api/fines/:id/status",
+    "method": "PATCH",
+    "req": { "body": { "status": "paga" }, "headers": { "Authorization": "Bearer ..." } },
+    "res": { "id": "f1", "status": "paga" }
+  },
+  {
+    "endpoint": "/api/fines/:fineId/pay",
+    "method": "POST",
+    "req": { "headers": { "Authorization": "Bearer ..." } },
+    "res": { "message": "Multa paga com sucesso" }
+  },
+  {
+    "endpoint": "/api/fines/user/:userId",
+    "method": "GET",
+    "req": {},
+    "res": []
+  },
+  {
+    "endpoint": "/api/fines/history/:userId",
+    "method": "GET",
+    "req": {},
+    "res": []
+  },
+  {
+    "endpoint": "/api/stats/system",
+    "method": "GET",
+    "req": {},
+    "res": { "totalObras": 1000, "usuariosAtivos": 200, "emprestimosHoje": 10 }
+  },
+  {
+    "endpoint": "/api/stats/user/:userId",
+    "method": "GET",
+    "req": {},
+    "res": { "emprestimos": 5, "reservas": 2, "multas": 0 }
+  },
+  {
+    "endpoint": "/api/stats/book/:bookId",
+    "method": "GET",
+    "req": {},
+    "res": { "emprestimos": 20, "reservas": 3 }
+  }
+]

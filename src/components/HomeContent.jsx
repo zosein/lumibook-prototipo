@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Book } from 'lucide-react';
 import CatalogService from '../services/CatalogService';
 
-export default function HomeContent({ setCurrentPage }) {
+export default function HomeContent({ setCurrentPage, navigateToDetails }) {
   const [recentBooks, setRecentBooks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,7 +51,7 @@ export default function HomeContent({ setCurrentPage }) {
               <div 
                 key={item.id} 
                 className="p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
-                onClick={() => setCurrentPage('detalhes')}
+                onClick={() => navigateToDetails(item.id)}
               >
                 <div className="flex justify-between">
                   <h3 className="font-medium">{item.titulo}</h3>

@@ -51,6 +51,10 @@ src/
 │ └── DetailsPage.jsx # Página de detalhes do livro
 └── App.jsx # Componente principal da aplicação
 
+## Exportação de Log de Requisições/Respostas
+
+Na página de perfil do admin/bibliotecário, utilize o botão "Exportar Log de Req/Res" para baixar um arquivo JSON contendo todas as requisições e respostas do front relacionadas ao cadastro de bibliotecário e gerenciamento de livros. Use este arquivo para validar a compatibilidade com o back-end.
+
 ## Licença
 
 Este projeto está licenciado sob a licença MIT.

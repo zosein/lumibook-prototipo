@@ -1,6 +1,6 @@
 import api from "./api";
 
-// Buscar perfil do usuário/admin
+// Busca o perfil do usuário autenticado (aluno, professor ou admin)
 export const getProfile = async (token) => {
   const res = await api.get("/usuarios/perfil", {
     headers: { Authorization: `Bearer ${token}` },
@@ -8,7 +8,7 @@ export const getProfile = async (token) => {
   return res.data;
 };
 
-// Atualizar perfil do usuário/admin
+// Atualiza o perfil do usuário autenticado
 export const updateProfile = async (dados, token) => {
   const res = await api.patch("/usuarios/perfil", dados, {
     headers: { Authorization: `Bearer ${token}` },

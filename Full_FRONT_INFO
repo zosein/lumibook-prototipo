@@ -1,0 +1,200 @@
+# Informações Completas do Front-End (LUMIBOOK)
+
+## 1. Fluxos de Usuário
+
+### 1.1. Autenticação (Login)
+- **Página:** LoginPage.jsx
+- **Fluxo:**
+  - Usuário informa matrícula (aluno) ou email institucional (professor/admin) e senha.
+  - Validação local do tipo de usuário e formato dos dados.
+  - Chamada à rota `/usuarios/login` (POST) para autenticação.
+  - Armazena token JWT no localStorage em caso de sucesso.
+  - Redireciona para o perfil correspondente (aluno ou admin).
+- **Regras de negócio:**
+  - Apenas emails institucionais são aceitos para professores.
+  - Alunos só podem logar com matrícula.
+  - Admin só acessa área restrita se papel for 'admin'.
+
+### 1.2. Cadastro de Usuário
+- **Página:** RegisterPage.jsx
+- **Fluxo:**
+  - Usuário preenche nome, email, telefone, papel (aluno/professor), matrícula (aluno), senha.
+  - Validação local de campos obrigatórios e requisitos de senha.
+  - Professores só podem cadastrar com email institucional.
+  - Chamada à rota `/usuarios/register` (POST).
+  - Exibe mensagens de erro para duplicidade de email ou matrícula.
+- **Regras de negócio:**
+  - Cadastro de bibliotecários é exclusivo para admin, via área restrita.
+
+### 1.3. Perfil do Usuário (Aluno)
+- **Página:** StudentProfilePage.jsx / StudentProfile.jsx
+- **Fluxo:**
+  - Exibe dados do usuário, reservas, empréstimos, multas e histórico.
+  - Consome rotas:
+    - `/usuarios/:id` (GET)
+    - `/reservations/user/:userId` (GET)
+    - `/emprestimos?userId=...` (GET)
+    - `/fines/user/:userId` (GET)
+    - `/fines/history/:userId` (GET)
+    - `/reservations/historico?userId=...` (GET)
+    - `/emprestimos/historico?userId=...` (GET)
+  - Permite cancelar reservas e pagar multas.
+- **Regras de negócio:**
+  - Só pode cancelar reservas que não foram retiradas.
+  - Só pode pagar multas em aberto.
+
+### 1.4. Perfil do Usuário (Admin)
+- **Página:** AdminProfilePage.jsx / AdminProfile.jsx
+- **Fluxo:**
+  - Exibe dashboard, estatísticas, gerenciamento de acervo, usuários e relatórios.
+  - Permite cadastrar bibliotecários (`/bibliotecarios`, POST).
+  - Exporta log de requisições/respostas do front.
+  - Consome rotas:
+    - `/stats/system` (GET)
+    - `/usuarios` (GET, PATCH, DELETE)
+    - `/books` (GET, POST, PUT, DELETE)
+    - `/emprestimos`, `/fines`, `/reservations` (admin pode visualizar todos)
+- **Regras de negócio:**
+  - Apenas admin pode acessar/cadastrar bibliotecários.
+  - Proteção de rota: só admin autenticado acessa área restrita.
+
+### 1.5. Busca e Detalhes de Livros
+- **Páginas:** SearchResultsPage.jsx, DetailsPage.jsx, ResultList.jsx, BookDetails.jsx
+- **Fluxo:**
+  - Busca de livros com filtros avançados.
+  - Consome rotas:
+    - `/books/search` (GET)
+    - `/books/:bookId` (GET)
+    - `/books/relacionados/:bookId` (GET)
+    - `/books?recentes=true&limit=3` (GET)
+    - `/books` (GET, filtros por categoria, disponibilidade)
+  - Exibe detalhes, permite reservar (se logado), ver relacionados.
+- **Regras de negócio:**
+  - Só usuários logados podem reservar.
+  - Validação de disponibilidade antes de reservar.
+
+### 1.6. Reservas
+- **Serviço:** ReservationService.js
+- **Fluxo:**
+  - Criar reserva: `/reservations` (POST)
+  - Cancelar reserva: `/reservations/:id` (DELETE)
+  - Atualizar status: `/reservations/:id` (PATCH)
+  - Buscar reservas do usuário: `/reservations/user/:userId` (GET)
+  - Buscar histórico: `/reservations/historico?userId=...` (GET)
+- **Regras de negócio:**
+  - Só permite reserva se livro disponível.
+  - Só pode cancelar reservas não retiradas.
+
+### 1.7. Empréstimos
+- **Serviço:** LoanService.js
+- **Fluxo:**
+  - Criar empréstimo: `/emprestimos` (POST)
+  - Devolver: `/emprestimos/:id/devolucao` (PUT)
+  - Cancelar: `/emprestimos/:id` (DELETE)
+  - Buscar ativos: `/emprestimos?userId=...` (GET)
+  - Buscar histórico: `/emprestimos/historico?userId=...` (GET)
+- **Regras de negócio:**
+  - Limite de empréstimos: 3 (aluno), 10 (professor), 20 (admin).
+  - Não pode emprestar se atingiu limite.
+
+### 1.8. Multas
+- **Serviço:** FineService.js
+- **Fluxo:**
+  - Buscar multas: `/fines/user/:userId` (GET)
+  - Pagar multa: `/fines/:fineId/pay` (POST)
+  - Criar multa: `/fines` (POST)
+  - Buscar histórico: `/fines/history/:userId` (GET)
+- **Regras de negócio:**
+  - Só pode pagar multas em aberto.
+  - Só cria multa se houver infração (atraso, dano).
+
+### 1.9. Estatísticas
+- **Serviço:** StatsService.js
+- **Fluxo:**
+  - Buscar estatísticas do usuário: `/stats/user/:userId` (GET)
+  - Buscar estatísticas do sistema: `/stats/system` (GET)
+  - Buscar estatísticas de livro: `/stats/book/:bookId` (GET)
+- **Regras de negócio:**
+  - Limites e cálculos de disponibilidade por tipo de usuário.
+
+### 1.10. Catálogo de Livros
+- **Serviço:** CatalogService.js
+- **Fluxo:**
+  - Catalogar obra: `/admin/obras/catalogar` (POST)
+  - Buscar tipos: `/books/types` (GET)
+  - Buscar categorias: `/books/categories` (GET)
+  - Buscar editoras: `/editoras/buscar` (GET)
+  - Verificar duplicata: `/books/check-duplicate` (GET)
+  - Buscar por ISBN: `/books/isbn/:isbn` (GET)
+  - CRUD de livros: `/books` (GET, POST), `/books/:id` (GET, PUT, DELETE)
+- **Regras de negócio:**
+  - Validação de dados obrigatórios e formatos (título, autor, ano, ISBN, etc).
+  - Só admin pode catalogar/editar/remover livros.
+
+## 2. Rotas e Subrotas Consumidas
+
+### Usuários
+- `POST /usuarios/login` — Login
+- `POST /usuarios/register` — Cadastro
+- `GET /usuarios/:id` — Buscar perfil
+- `PATCH /usuarios/:id` — Atualizar perfil
+- `DELETE /usuarios/:id` — Remover usuário
+- `POST /bibliotecarios` — Cadastro de bibliotecário (admin)
+- `GET /auditoria/logs` — Logs do sistema
+
+### Catálogo
+- `POST /admin/obras/catalogar` — Catalogar obra (admin)
+- `GET /books/types` — Tipos de obra
+- `GET /books/categories` — Categorias
+- `GET /editoras/buscar` — Editoras
+- `GET /books/check-duplicate` — Verificar duplicata
+- `GET /books/isbn/:isbn` — Buscar por ISBN
+- `GET /books/:id` — Detalhes do livro
+- `GET /books/relacionados/:id` — Livros relacionados
+- `GET /books?recentes=true` — Livros recentes
+- `GET /books` — Listar livros
+- `POST /books` — Adicionar livro
+- `PUT /books/:id` — Atualizar livro
+- `DELETE /books/:id` — Remover livro
+
+### Reservas
+- `POST /reservations` — Criar reserva
+- `GET /reservations/user/:userId` — Reservas do usuário
+- `DELETE /reservations/:id` — Cancelar reserva
+- `PATCH /reservations/:id` — Atualizar status
+- `GET /reservations/book/:bookId` — Reservas de um livro
+- `GET /reservations/historico?userId=...` — Histórico de reservas
+
+### Empréstimos
+- `POST /emprestimos` — Criar empréstimo
+- `PUT /emprestimos/:id/devolucao` — Devolver livro
+- `DELETE /emprestimos/:id` — Cancelar empréstimo
+- `GET /emprestimos?userId=...` — Empréstimos ativos
+- `GET /emprestimos/historico?userId=...` — Histórico de empréstimos
+
+### Multas
+- `GET /fines/user/:userId` — Buscar multas
+- `POST /fines/:fineId/pay` — Pagar multa
+- `POST /fines` — Criar multa
+- `GET /fines/history/:userId` — Histórico de multas
+
+### Estatísticas
+- `GET /stats/user/:userId` — Estatísticas do usuário
+- `GET /stats/system` — Estatísticas do sistema
+- `GET /stats/book/:bookId` — Estatísticas do livro
+
+### Outros
+- `GET /auditoria/logs` — Logs do sistema (admin)
+
+## 3. Regras de Negócio Gerais
+- Proteção de rotas: só usuários autenticados acessam áreas restritas.
+- Admin tem acesso a funcionalidades exclusivas (cadastro de bibliotecário, catálogo completo, relatórios).
+- Validações de formulário em todas as telas (campos obrigatórios, formatos, limites).
+- Limites de empréstimos e reservas por tipo de usuário.
+- Só pode reservar/emprestar se não atingiu limite e não possui multas em aberto.
+- Cadastro de bibliotecário apenas por admin.
+- Exportação de logs de requisições/respostas disponível para admin.
+
+---
+
+**Arquivo gerado automaticamente. Para detalhes de implementação, consulte os arquivos em `src/pages`, `src/components` e `src/services`.** 

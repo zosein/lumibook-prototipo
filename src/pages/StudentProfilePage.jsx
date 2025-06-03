@@ -17,11 +17,12 @@ export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn })
   // Formatar dados do usuário para o componente StudentProfile
   const userData = {
     name: user.nome || user.usuario || "USUÁRIO",
-    avatar: null, // Avatar será buscado dinamicamente pela API via UserService
+    avatar: user.avatar || null, // Avatar será buscado dinamicamente pela API via UserService
     email: user.email,
     papel: user.papel,
     matricula: user.tipoLogin === 'matricula' ? user.usuario : null,
-    tipoLogin: user.tipoLogin
+    tipoLogin: user.tipoLogin,
+    id: user.id || user._id || null // Corrigido: nunca papel!
   };
 
   return (

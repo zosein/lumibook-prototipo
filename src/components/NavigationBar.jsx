@@ -1,20 +1,21 @@
 import { Home, Search, Clock, User, Shield } from 'lucide-react';
 
 export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn, user }) {
-  // Determinar itens de navegação baseado no tipo de usuário
+  // Define os itens de navegação de acordo com o tipo de usuário
   const getNavItems = () => {
     const baseItems = [
       { id: 'home', icon: Home, label: 'Início' },
       { id: 'resultados', icon: Search, label: 'Pesquisa' }
     ];
-
     if (isLoggedIn && user?.papel === 'admin') {
+      // Admin tem acesso a rotas exclusivas
       return [
         ...baseItems,
         { id: 'admin-dashboard', icon: Shield, label: 'Admin' },
-        { id: 'admin-perfil', icon: User, label: 'Perfil' } // MUDANÇA: usar admin-perfil diretamente
+        { id: 'admin-perfil', icon: User, label: 'Perfil' }
       ];
     } else {
+      // Usuário comum
       return [
         ...baseItems,
         { id: 'reservas', icon: Clock, label: 'Reservas' },
@@ -25,10 +26,9 @@ export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn,
 
   const navItems = getNavItems();
 
+  // Lógica de navegação centralizada para tratar regras de acesso
   const handleNavigation = (id) => {
-    // CORREÇÃO: Lógica mais clara para roteamento
-    
-    // Se é admin tentando acessar qualquer área restrita
+    // Admin só pode acessar áreas restritas se estiver autenticado
     if (isLoggedIn && user?.papel === 'admin') {
       if (id === 'admin-dashboard' || id === 'admin-perfil') {
         setCurrentPage('admin-perfil');
@@ -39,26 +39,26 @@ export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn,
         return;
       }
     }
-
-    // Se usuário não-admin tenta acessar admin
+    // Usuário comum não pode acessar admin
     if (id === 'admin-dashboard' || id === 'admin-perfil') {
       if (!isLoggedIn) {
         setCurrentPage('login');
         return;
       }
       if (user?.papel !== 'admin') {
-        // Usuário logado mas não é admin - negar acesso
         return;
       }
     }
-
-    // Se tentar acessar perfil sem estar logado, redireciona para login
+    // Redireciona para login se tentar acessar perfil sem estar logado
     if (id === 'perfil' && !isLoggedIn) {
       setCurrentPage('login');
       return;
     }
-    
-    // Navegação normal para outras páginas
+    // Acesso direto para reservas
+    if (id === 'reservas') {
+      setCurrentPage('reservas');
+      return;
+    }
     setCurrentPage(id);
   };
 
@@ -94,7 +94,7 @@ export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn,
               (id === 'admin-perfil' && currentPage === 'admin-perfil')) && (
               <div className="w-1 h-1 bg-blue-300 rounded-full mt-1 animate-pulse"></div>
             )}
-            {/* Indicador especial para admin */}
+            {/* Indicador visual para admin logado */}
             {(id === 'admin-dashboard' || id === 'admin-perfil') && isLoggedIn && user?.papel === 'admin' && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-800"></div>
             )}
@@ -105,6 +105,7 @@ export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn,
   );
 }
 
+// Tooltip contextual para navegação
 function getTooltipText(id, isLoggedIn, user) {
   if (id === 'admin-dashboard' || id === 'admin-perfil') {
     if (!isLoggedIn) return 'Clique para fazer login';

@@ -1,17 +1,16 @@
-// Utilitário para cache de estatísticas do usuário
+// Utilitário para cache de estatísticas do usuário (usado para evitar requisições desnecessárias à API)
 
 const CACHE_KEY_PREFIX = 'lumibook_stats_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
 export const StatsCache = {
-  // Salvar estatísticas no cache
+  // Salva estatísticas no cache localStorage
   set: (userId, stats) => {
     const cacheData = {
       data: stats,
       timestamp: Date.now(),
       userId
     };
-    
     try {
       localStorage.setItem(
         `${CACHE_KEY_PREFIX}${userId}`, 
@@ -22,21 +21,18 @@ export const StatsCache = {
     }
   },
 
-  // Buscar estatísticas do cache
+  // Busca estatísticas do cache, se ainda estiverem válidas
   get: (userId) => {
     try {
       const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${userId}`);
       if (!cached) return null;
-
       const cacheData = JSON.parse(cached);
       const now = Date.now();
-
-      // Verificar se o cache ainda é válido
+      // Só retorna se o cache não expirou
       if (now - cacheData.timestamp > CACHE_DURATION) {
         StatsCache.remove(userId);
         return null;
       }
-
       return cacheData.data;
     } catch (error) {
       console.warn('Erro ao ler cache de estatísticas:', error);
@@ -44,7 +40,7 @@ export const StatsCache = {
     }
   },
 
-  // Remover estatísticas do cache
+  // Remove estatísticas do cache para um usuário
   remove: (userId) => {
     try {
       localStorage.removeItem(`${CACHE_KEY_PREFIX}${userId}`);
@@ -53,7 +49,7 @@ export const StatsCache = {
     }
   },
 
-  // Limpar todo o cache de estatísticas
+  // Limpa todo o cache de estatísticas do sistema
   clear: () => {
     try {
       const keys = Object.keys(localStorage);

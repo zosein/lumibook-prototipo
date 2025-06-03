@@ -2,10 +2,11 @@
 
 import api from "./api";
 
-export class CatalogService {
+// Serviço responsável por operações do catálogo de livros
+const CatalogService = {
   
   // Headers padrão para as requisições
-  static getHeaders(includeAuth = true) {
+  getHeaders(includeAuth = true) {
     const headers = {
       'Content-Type': 'application/json',
     };
@@ -18,10 +19,10 @@ export class CatalogService {
     }
     
     return headers;
-  }
+  },
 
   // Catalogar nova obra
-  static async catalogarObra(dadosObra, adminId) {
+  async catalogarObra(dadosObra, adminId) {
     try {
       const response = await api.post(
         "/admin/obras/catalogar",
@@ -48,10 +49,10 @@ export class CatalogService {
       }
       throw new Error(error.message || "Erro inesperado ao catalogar obra");
     }
-  }
+  },
 
   // Validar dados antes de enviar para API
-  static validarDadosObra(dados) {
+  validarDadosObra(dados) {
     const errors = {};
 
     // Validações obrigatórias
@@ -117,12 +118,12 @@ export class CatalogService {
       isValid: Object.keys(errors).length === 0,
       errors
     };
-  }
+  },
 
   // Buscar tipos de obra da API
-  static async getTiposObra() {
+  async getTiposObra() {
     try {
-      const response = await api.get("/obras/tipos", {
+      const response = await api.get("/books/types", {
         headers: this.getHeaders(false),
       });
       return response.data;
@@ -131,12 +132,12 @@ export class CatalogService {
         "Não foi possível carregar tipos de obra. Verifique a conexão com a API."
       );
     }
-  }
+  },
 
   // Buscar categorias da API
-  static async getCategorias() {
+  async getCategorias() {
     try {
-      const response = await api.get("/obras/categorias", {
+      const response = await api.get("/books/categories", {
         headers: this.getHeaders(false),
       });
       return response.data;
@@ -145,10 +146,10 @@ export class CatalogService {
         "Não foi possível carregar categorias. Verifique a conexão com a API."
       );
     }
-  }
+  },
 
   // Buscar editoras da API (para autocomplete)
-  static async getEditoras(termo = "") {
+  async getEditoras(termo = "") {
     try {
       const response = await api.get(`/editoras/buscar?q=${encodeURIComponent(termo)}`, {
         headers: this.getHeaders(false),
@@ -157,27 +158,27 @@ export class CatalogService {
     } catch (error) {
       return [];
     }
-  }
+  },
 
   // Verificar duplicatas por ISBN ou título
-  static async verificarDuplicata(isbn, titulo) {
+  async verificarDuplicata(isbn, titulo) {
     try {
       const params = new URLSearchParams();
       if (isbn) params.append("isbn", isbn);
       if (titulo) params.append("titulo", titulo);
-      const response = await api.get(`/obras/verificar-duplicata?${params}`, {
+      const response = await api.get(`/books/check-duplicate?${params}`, {
         headers: this.getHeaders(),
       });
       return response.data;
     } catch (error) {
       return { existe: false, obras: [] };
     }
-  }
+  },
 
   // Buscar obra por ISBN (para preenchimento automático)
-  static async buscarPorISBN(isbn) {
+  async buscarPorISBN(isbn) {
     try {
-      const response = await api.get(`/obras/isbn/${isbn}`, {
+      const response = await api.get(`/books/isbn/${isbn}`, {
         headers: this.getHeaders(false),
       });
       return response.data;
@@ -187,40 +188,96 @@ export class CatalogService {
       }
       return null;
     }
-  }
+  },
 
   // Buscar detalhes de um livro
-  static async getBookById(bookId, token) {
-    const res = await api.get(`/livros/${bookId}`, {
+  async getBookById(bookId, token) {
+    const res = await api.get(`/books/${bookId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data;
-  }
+  },
 
   // Buscar livros relacionados
-  static async getRelatedBooks(bookId, token) {
-    const res = await api.get(`/livros/relacionados/${bookId}?limit=4`, {
+  async getRelatedBooks(bookId, token) {
+    const res = await api.get(`/books/relacionados/${bookId}?limit=4`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data;
-  }
+  },
 
   // Buscar livros recentes
-  static async getRecentBooks(token) {
-    const res = await api.get(`/livros/recentes?limit=3`, {
+  async getRecentBooks(token) {
+    const res = await api.get(`/books?recentes=true&limit=3`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data;
-  }
+  },
 
   // Buscar livros (pesquisa)
-  static async searchBooks(params, token) {
-    const res = await api.get(`/livros/buscar`, {
+  async searchBooks(params, token) {
+    const res = await api.get(`/books/search`, {
       params,
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data;
-  }
-}
+  },
+
+  // Busca todos os livros do catálogo, com filtros opcionais
+  async getBooks({ search, category, available } = {}) {
+    // Parâmetros opcionais: busca por título, categoria e disponibilidade
+    return api.get('/books', { params: { search, category, available } });
+  },
+
+  // Busca detalhes de um livro específico
+  async getBookDetails(bookId) {
+    return api.get(`/books/${bookId}`);
+  },
+
+  // Adiciona um novo livro ao catálogo
+  async addBook(bookData, token) {
+    const res = await api.post('/books', bookData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    window._frontReqResLog = window._frontReqResLog || [];
+    window._frontReqResLog.push({
+      endpoint: '/api/books',
+      method: 'POST',
+      req: { body: bookData, headers: { Authorization: 'Bearer ...' } },
+      res: res.data
+    });
+    return res;
+  },
+
+  // Atualiza informações de um livro
+  async updateBook(bookId, bookData, token) {
+    const res = await api.put(`/books/${bookId}`, bookData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    window._frontReqResLog = window._frontReqResLog || [];
+    window._frontReqResLog.push({
+      endpoint: `/api/books/${bookId}`,
+      method: 'PUT',
+      req: { body: bookData, headers: { Authorization: 'Bearer ...' } },
+      res: res.data
+    });
+    return res;
+  },
+
+  // Remove um livro do catálogo
+  async deleteBook(bookId, token) {
+    const res = await api.delete(`/books/${bookId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    window._frontReqResLog = window._frontReqResLog || [];
+    window._frontReqResLog.push({
+      endpoint: `/api/books/${bookId}`,
+      method: 'DELETE',
+      req: { headers: { Authorization: 'Bearer ...' } },
+      res: res.data
+    });
+    return res;
+  },
+};
 
 export default CatalogService;

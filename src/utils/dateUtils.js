@@ -1,4 +1,5 @@
 // src/utils/dateUtils.js
+// Função utilitária para formatar datas em formato "tempo atrás" (ex: 2h atrás, 3d atrás)
 export function formatTimeAgo(date) {
 	const now = new Date();
 	const diffInMs = now - date;

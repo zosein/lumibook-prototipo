@@ -3,7 +3,7 @@ import { BookOpen, Info } from 'lucide-react';
 import CatalogService from '../services/CatalogService';
 import * as ReservationService from '../services/ReservationService';
 
-export default function BookDetails({ setCurrentPage, bookId }) {
+export default function BookDetails({ setCurrentPage, bookId, navigateToDetails }) {
   const [livro, setLivro] = useState(null);
   const [obrasRelacionadas, setObrasRelacionadas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,8 @@ export default function BookDetails({ setCurrentPage, bookId }) {
   const handleReserve = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      await ReservationService.createReservation({ livroId: livro.id }, token);
+      const user = JSON.parse(localStorage.getItem('userData'));
+      await ReservationService.createReservation({ livroId: livro.id, usuarioId: user.id }, token);
       alert('Reserva realizada com sucesso!');
     } catch (err) {
       alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
@@ -78,7 +79,6 @@ export default function BookDetails({ setCurrentPage, bookId }) {
       >
         ← Voltar aos resultados
       </button>
-      
       <div className="bg-white border border-gray-200 rounded-md p-4">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-1/4 flex justify-center">
@@ -86,11 +86,9 @@ export default function BookDetails({ setCurrentPage, bookId }) {
               <BookOpen size={80} className="text-gray-500" />
             </div>
           </div>
-          
           <div className="md:w-3/4">
             <h1 className="text-xl font-bold mb-1">{livro.titulo}</h1>
             <p className="text-gray-600 mb-3">{livro.autor}, {livro.ano}</p>
-            
             <div className="flex gap-2 mb-4">
               <span className={`text-sm px-2 py-0.5 rounded ${livro.disponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                 {livro.disponivel ? 'Disponível' : 'Indisponível'}
@@ -99,12 +97,10 @@ export default function BookDetails({ setCurrentPage, bookId }) {
                 {livro.tipo}
               </span>
             </div>
-            
             <div className="mb-4">
               <h2 className="font-medium mb-2">Resumo</h2>
               <p className="text-gray-700">{livro.resumo}</p>
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 mb-6">
               <div>
                 <h3 className="font-medium text-sm text-gray-600">ISBN</h3>
@@ -139,7 +135,6 @@ export default function BookDetails({ setCurrentPage, bookId }) {
                 <p>{livro.exemplares.disponiveis} disponíveis ({livro.exemplares.total} total)</p>
               </div>
             </div>
-            
             <div className="flex gap-2">
               {livro.disponivel && (
                 <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={handleReserve}>Reservar</button>
@@ -154,7 +149,6 @@ export default function BookDetails({ setCurrentPage, bookId }) {
           </div>
         </div>
       </div>
-      
       <div className="mt-6">
         <h2 className="text-lg font-medium mb-2">Obras relacionadas</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -162,12 +156,7 @@ export default function BookDetails({ setCurrentPage, bookId }) {
             <div 
               key={item.id} 
               className="bg-white border border-gray-200 rounded-md p-3 hover:shadow-md cursor-pointer"
-              onClick={() => {
-                // Navegar para os detalhes do livro relacionado
-                setCurrentPage('detalhes');
-                // Precisamos implementar isso no componente pai
-                // Essa parte será capturada no próximo arquivo
-              }}
+              onClick={() => navigateToDetails(item.id)}
             >
               <div className="flex justify-center mb-2">
                 <div className="bg-gray-200 p-3 rounded">

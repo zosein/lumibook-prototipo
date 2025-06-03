@@ -2,12 +2,20 @@ import { useState } from 'react';
 import { User, Database, UserPlus, FileText, BarChart3, Clock, BookOpen,Plus,
 Edit3, TrendingUp, Activity} from 'lucide-react';
 import AdminProfile from "../components/AdminProfile";
+import { registerBibliotecario, exportFrontReqResLog } from '../services/UserService';
+
+// Array global para registrar req/res
+window._frontReqResLog = window._frontReqResLog || [];
 
 export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onLogout }) {
-  // Proteção de rota: só renderiza se estiver logado como admin
-  if (!isLoggedIn || !user || user.papel !== 'admin') {
-    console.warn('Acesso não autorizado ao painel admin - redirecionando para login');
-    // Redirecionar para login de forma segura
+  // Hooks devem estar no topo
+  const [showModal, setShowModal] = useState(false);
+  const [bibForm, setBibForm] = useState({ nome: '', email: '', senha: '' });
+  const [bibMsg, setBibMsg] = useState('');
+  const [bibLoading, setBibLoading] = useState(false);
+  // Protege a rota: só permite acesso se for admin autenticado
+  if (!isLoggedIn || !user || (user.papel !== 'admin' && user.papel !== 'bibliotecario')) {
+    // Redireciona para login caso não autorizado
     setTimeout(() => setCurrentPage('login'), 0);
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -17,7 +25,7 @@ export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onL
       </div>
     );
   }
-  // Formatar dados do usuário para o componente AdminProfile
+  // Prepara dados do admin para o componente principal
   const adminData = {
     nome: user.nome || user.usuario || "ADMINISTRADOR",
     avatar: null, // Avatar será buscado dinamicamente pela API via UserService
@@ -28,17 +36,77 @@ export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onL
   };
 
   return (
-    <AdminProfile 
-      user={adminData}
-      setCurrentPage={setCurrentPage}
-      isLoggedIn={isLoggedIn}
-      onLogout={onLogout}
-    />
+    <>
+      {/* Botão para abrir modal de cadastro de bibliotecário */}
+      {user.papel === 'admin' && (
+        <button
+          className="bg-orange-600 text-white px-4 py-2 rounded-lg mb-4 hover:bg-orange-700"
+          onClick={() => setShowModal(true)}
+        >
+          Cadastrar Bibliotecário
+        </button>
+      )}
+      <button
+        className="bg-gray-600 text-white px-4 py-2 rounded-lg mb-4 hover:bg-gray-700 ml-2"
+        onClick={exportFrontReqResLog}
+      >
+        Exportar Log de Req/Res
+      </button>
+      {/* Modal de cadastro de bibliotecário */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 shadow-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Novo Bibliotecário</h2>
+            <form onSubmit={async e => {
+              e.preventDefault();
+              setBibLoading(true);
+              setBibMsg('');
+              try {
+                const res = await registerBibliotecario(bibForm, localStorage.getItem('authToken'));
+                window._frontReqResLog.push({
+                  endpoint: '/api/bibliotecarios',
+                  method: 'POST',
+                  req: { body: bibForm, headers: { Authorization: 'Bearer ...' } },
+                  res
+                });
+                setBibMsg('Bibliotecário cadastrado com sucesso!');
+                setBibForm({ nome: '', email: '', senha: '' });
+              } catch (err) {
+                if (err?.response?.status === 403) {
+                  setBibMsg('Apenas administradores podem cadastrar bibliotecários.');
+                } else {
+                  setBibMsg(err?.response?.data?.message || 'Erro ao cadastrar bibliotecário.');
+                }
+              } finally {
+                setBibLoading(false);
+              }
+            }} className="space-y-4">
+              <input type="text" placeholder="Nome" required className="w-full border rounded px-3 py-2" value={bibForm.nome} onChange={e => setBibForm(f => ({ ...f, nome: e.target.value }))} />
+              <input type="email" placeholder="Email" required className="w-full border rounded px-3 py-2" value={bibForm.email} onChange={e => setBibForm(f => ({ ...f, email: e.target.value }))} />
+              <input type="password" placeholder="Senha" required className="w-full border rounded px-3 py-2" value={bibForm.senha} onChange={e => setBibForm(f => ({ ...f, senha: e.target.value }))} />
+              <div className="flex gap-2">
+                <button type="submit" disabled={bibLoading} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex-1">{bibLoading ? 'Cadastrando...' : 'Cadastrar'}</button>
+                <button type="button" onClick={() => { setShowModal(false); setBibMsg(''); }} className="bg-gray-300 px-4 py-2 rounded flex-1">Cancelar</button>
+              </div>
+              {bibMsg && <div className="text-center text-sm mt-2 text-blue-700">{bibMsg}</div>}
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Resto do conteúdo do admin */}
+      <AdminProfile 
+        user={adminData}
+        setCurrentPage={setCurrentPage}
+        isLoggedIn={isLoggedIn}
+        onLogout={onLogout}
+      />
+    </>
   );
 }
 
-// Componente Dashboard padronizado
+// Dashboard de estatísticas e atividades do sistema
 export function DashboardContent() {
+  // Dados mockados para exibição visual do dashboard
   const statsData = [
     { 
       title: 'Total de Obras', 
@@ -76,7 +144,7 @@ export function DashboardContent() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header da seção */}
+      {/* Header do dashboard com ícone e título */}
       <div className="border-b border-gray-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg">
@@ -88,8 +156,7 @@ export function DashboardContent() {
           </div>
         </div>
       </div>
-
-      {/* Cards de estatísticas com design padronizado */}
+      {/* Cards de estatísticas principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {statsData.map((stat, index) => (
           <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-200">
@@ -111,8 +178,7 @@ export function DashboardContent() {
           </div>
         ))}
       </div>
-
-      {/* Atividades recentes com design padronizado */}
+      {/* Atividades recentes (exemplo visual) */}
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 bg-white">
           <div className="flex items-center gap-3">
@@ -122,9 +188,9 @@ export function DashboardContent() {
             <h3 className="text-lg font-semibold text-gray-900">Atividades Recentes</h3>
           </div>
         </div>
-          <div className="p-6">
+        <div className="p-6">
           <div className="space-y-4">
-            {/* Atividades agora vêm da API via UserService.getSystemActivities() */}
+            {/* Integração futura: UserService.getSystemActivities() */}
             <div className="text-center py-4">
               <p className="text-gray-500">Atividades carregadas dinamicamente da API</p>
               <p className="text-sm text-gray-400 mt-1">Integração com UserService.getSystemActivities()</p>
@@ -136,7 +202,7 @@ export function DashboardContent() {
   );
 }
 
-// Componente Catalogação padronizado
+// Formulário de catalogação de obras
 export function CatalogacaoContent() {
   const [formData, setFormData] = useState({
     titulo: '',
@@ -153,24 +219,24 @@ export function CatalogacaoContent() {
     exemplares: 1
   });
 
+  // Tipos e categorias fixos para exemplo
   const tiposObra = [
     'Livro', 'E-book', 'Periódico', 'Tese', 'Dissertação', 'Artigo', 'Manual'
   ];
-
   const categorias = [
     'Ciência da Computação', 'Engenharia', 'Matemática', 'Física', 'Química',
     'Biologia', 'Literatura', 'História', 'Filosofia', 'Direito', 'Medicina'
   ];
 
+  // Submissão do formulário (integração futura com API)
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Catalogar nova obra:', formData);
-    // Aqui será integrado com a API
   };
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header da seção */}
+      {/* Header da seção de catalogação */}
       <div className="border-b border-gray-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-green-100 rounded-lg">
@@ -182,12 +248,11 @@ export function CatalogacaoContent() {
           </div>
         </div>
       </div>
-
-      {/* Formulário com design padronizado */}
+      {/* Formulário de cadastro de obra */}
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100">
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Título */}
+            {/* Campos do formulário: título, autor, etc. */}
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Título da Obra*
@@ -201,8 +266,6 @@ export function CatalogacaoContent() {
                 placeholder="Digite o título completo"
               />
             </div>
-
-            {/* Autor */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Autor*
@@ -216,8 +279,6 @@ export function CatalogacaoContent() {
                 placeholder="Nome do autor"
               />
             </div>
-
-            {/* ISBN */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 ISBN
@@ -230,8 +291,6 @@ export function CatalogacaoContent() {
                 placeholder="978-XX-XXXX-XXX-X"
               />
             </div>
-
-            {/* Tipo */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Tipo de Obra*
@@ -248,8 +307,6 @@ export function CatalogacaoContent() {
                 ))}
               </select>
             </div>
-
-            {/* Categoria */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Categoria*
@@ -266,8 +323,6 @@ export function CatalogacaoContent() {
                 ))}
               </select>
             </div>
-
-            {/* Ano */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Ano de Publicação*
@@ -282,8 +337,6 @@ export function CatalogacaoContent() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
               />
             </div>
-
-            {/* Editora */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Editora
@@ -296,8 +349,6 @@ export function CatalogacaoContent() {
                 placeholder="Nome da editora"
               />
             </div>
-
-            {/* Páginas */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Número de Páginas
@@ -310,8 +361,6 @@ export function CatalogacaoContent() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
               />
             </div>
-
-            {/* Localização */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Localização*
@@ -325,8 +374,6 @@ export function CatalogacaoContent() {
                 placeholder="Ex: Estante A25, Prateleira 2"
               />
             </div>
-
-            {/* Exemplares */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Quantidade de Exemplares*
@@ -340,8 +387,6 @@ export function CatalogacaoContent() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
               />
             </div>
-
-            {/* Resumo */}
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Resumo
@@ -355,8 +400,7 @@ export function CatalogacaoContent() {
               />
             </div>
           </div>
-
-          {/* Botões de ação padronizados */}
+          {/* Botões de ação do formulário */}
           <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
             <button
               type="submit"

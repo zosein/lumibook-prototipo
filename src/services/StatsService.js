@@ -3,66 +3,26 @@
 import StatsCache from '../utils/StatsCache';
 import api from "./api";
 
-export class StatsService {
-  
+// Serviço responsável por operações de estatísticas do sistema
+const StatsService = {
   // Buscar estatísticas do usuário
-  static async getUserStats(user, forceRefresh = false) {
-    if (!user || !user.id) {
-      throw new Error('Usuário inválido');
-    }
+  async getUserStats(userId) {
+    // Novo endpoint padronizado
+    return api.get(`/stats/user/${userId}`);
+  },
 
-    // Verificar cache primeiro (se não for refresh forçado)
-    if (!forceRefresh) {
-      const cachedStats = StatsCache.get(user.id);
-      if (cachedStats) {
-        console.log('Estatísticas carregadas do cache');
-        return cachedStats;
-      }
-    }
+  // Buscar estatísticas gerais do sistema (admin)
+  async getSystemStats() {
+    return api.get('/stats/system');
+  },
 
-    try {
-      // Determinar endpoint baseado no tipo de usuário
-      const endpoint = user.papel === 'professor' 
-        ? `/professores/${user.id}/estatisticas`
-        : `/alunos/${user.id}/estatisticas`;
-
-      // Headers com autenticação
-      const headers = {
-        Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        "Content-Type": "application/json",
-        "X-User-Type": user.papel,
-        "X-User-ID": user.id,
-      };
-
-      console.log(`[API] Buscando estatísticas: ${endpoint}`);
-
-      const response = await api.get(endpoint, { headers });
-      const statsData = response.data;
-
-      // Validar estrutura dos dados
-      const validatedStats = StatsService.validateStatsData(statsData, user.papel);
-
-      // Salvar no cache
-      StatsCache.set(user.id, validatedStats);
-
-      return validatedStats;
-
-    } catch (error) {
-      console.error('Erro ao buscar estatísticas da API:', error);
-      
-      // Tentar fallback do cache em caso de erro
-      const cachedStats = StatsCache.get(user.id);
-      if (cachedStats) {
-        console.log('Usando cache como fallback');
-        return { ...cachedStats, fonte: 'cache_fallback' };
-      }
-      
-      throw error;
-    }
-  }
+  // Buscar estatísticas de uso de um livro
+  async getBookStats(bookId) {
+    return api.get(`/stats/book/${bookId}`);
+  },
 
   // Validar estrutura dos dados vindos da API - ATUALIZADO com cálculo correto
-  static validateStatsData(data, userType) {
+  validateStatsData(data, userType) {
     // Determinar limite de empréstimos baseado no tipo de usuário
     const limiteConcorrente = userType === 'professor' ? 10 : 3;
     
@@ -104,10 +64,10 @@ export class StatsService {
     }
 
     return baseStructure;
-  }
+  },
 
   // Atualizar uma estatística específica (para uso em tempo real)
-  static async updateStat(userId, statKey, newValue) {
+  async updateStat(userId, statKey, newValue) {
     try {
       const endpoint = `/usuarios/${userId}/estatisticas/${statKey}`;
       const response = await api.put(
@@ -126,14 +86,14 @@ export class StatsService {
       console.error('Erro ao atualizar estatística:', error);
       throw error;
     }
-  }
+  },
   // REMOVIDO: Funções de simulação de empréstimo e devolução
   // Agora use as APIs reais:
   // POST /api/emprestimos para criar empréstimos
   // PUT /api/emprestimos/:id/devolucao para devoluções
 
   // Buscar histórico de empréstimos
-  static async getUserHistory(userId, userType, page = 1, limit = 10) {
+  async getUserHistory(userId, userType, page = 1, limit = 10) {
     try {
       const endpoint = `/${userType}s/${userId}/historico-emprestimos`;
       const response = await api.get(`${endpoint}?page=${page}&limit=${limit}`, {
@@ -147,10 +107,10 @@ export class StatsService {
       console.error('Erro ao buscar histórico:', error);
       throw error;
     }
-  }
+  },
 
   // Calcular limites e disponibilidade para diferentes tipos de usuário
-  static calculateUserLimits(userType, currentLoans = 0) {
+  calculateUserLimits(userType, currentLoans = 0) {
     const limits = {
       aluno: { 
         max: 3, 
@@ -180,7 +140,7 @@ export class StatsService {
       isNearLimit: percentage >= 80,
       isAtLimit: percentage >= 100
     };
-  }
-}
+  },
+};
 
 export default StatsService;

@@ -17,7 +17,6 @@ export default function ResultList({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Função para realizar busca na API
   const performSearch = useCallback(async () => {
     if (!isSearchTriggered || !searchQuery) {
       setSearchResults([]);
@@ -34,7 +33,6 @@ export default function ResultList({
         disponivel: lastFilters.availability !== 'Todos' ? (lastFilters.availability === 'Disponível' ? 'true' : 'false') : undefined,
         ano: lastFilters.publicationYear !== 'Todos' ? lastFilters.publicationYear : undefined,
       };
-      // Remove undefined
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
       const results = await CatalogService.searchBooks(params, token);
       setSearchResults(results);
@@ -46,7 +44,6 @@ export default function ResultList({
     }
   }, [isSearchTriggered, searchQuery, lastFilters]);
 
-  // Atualiza os filtros armazenados apenas quando uma nova busca é disparada
   useEffect(() => {
     if (isSearchTriggered) {
       setLastFilters(advancedFilters);
@@ -54,12 +51,14 @@ export default function ResultList({
     }
   }, [isSearchTriggered, advancedFilters, searchQuery, performSearch]);
 
-  // Usar resultados da API em vez de dados mockados
   const filteredResults = useMemo(() => {
-    return Array.isArray(searchResults) ? searchResults : [];
+    if (!Array.isArray(searchResults)) return [];
+    return searchResults.map(item => ({
+      ...item,
+      id: item.id || item._id
+    }));
   }, [searchResults]);
 
-  // Reset dos detalhes expandidos quando os resultados mudam
   useEffect(() => {
     setDetailsOpen(null);
   }, [filteredResults]);
@@ -67,7 +66,8 @@ export default function ResultList({
   const handleReserve = async (bookId) => {
     try {
       const token = localStorage.getItem('authToken');
-      await ReservationService.createReservation({ livroId: bookId }, token);
+      const user = JSON.parse(localStorage.getItem('userData'));
+      await ReservationService.createReservation({ livroId: bookId, usuarioId: user.id }, token);
       alert('Reserva realizada com sucesso!');
     } catch (err) {
       alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
@@ -100,7 +100,6 @@ export default function ResultList({
           </button>
         </div>
       </div>
-
       {!isSearchTriggered ? (
         <div className="bg-white border border-gray-200 rounded-md p-8 text-center">
           <BookOpen size={40} className="mx-auto mb-2 text-gray-400" />
@@ -159,7 +158,6 @@ export default function ResultList({
                   </button>
                 </div>
               </div>
-              
               {detailsOpen === item.id && (
                 <div className="mt-2 pt-2 border-t text-sm">
                   <div className="grid grid-cols-2 gap-2">

@@ -55,3 +55,21 @@ export const getSystemActivities = async () => {
 	});
 	return res.data;
 };
+
+export const registerBibliotecario = async (dados, token) => {
+	const res = await api.post("/bibliotecarios", dados, {
+		headers: { Authorization: `Bearer ${token}` },
+	});
+	return res.data;
+};
+
+export const exportFrontReqResLog = () => {
+	const data = window._frontReqResLog || [];
+	const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = 'front_req_res_log.json';
+	a.click();
+	URL.revokeObjectURL(url);
+};
