@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { User, Database, UserPlus, FileText, BarChart3, Clock, BookOpen,Plus,
 Edit3, TrendingUp, Activity} from 'lucide-react';
 import AdminProfile from "../components/AdminProfile";
-import { registerBibliotecario, exportFrontReqResLog } from '../services/UserService';
+import { registerBibliotecario } from '../services/UserService';
 
 // Array global para registrar req/res
 window._frontReqResLog = window._frontReqResLog || [];

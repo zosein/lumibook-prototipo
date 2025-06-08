@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Eye, EyeOff, Mail, Hash, Loader2, ArrowLeft, AlertCircle, Shield } from 'lucide-react';
-import { validateLogin, validators, getApiErrorMessage } from '../utils/Validation';
+import { validateLogin, validators } from '../utils/Validation';
 import * as UserService from '../services/UserService';
 
 export default function LoginPage({ setCurrentPage, onLogin }) {

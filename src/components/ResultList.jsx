@@ -1,7 +1,6 @@
-import { List, Grid, ChevronDown, BookOpen, AlertCircle } from 'lucide-react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { List, Grid, BookOpen, AlertCircle } from 'lucide-react';
 import CatalogService from '../services/CatalogService';
-import * as ReservationService from '../services/ReservationService';
 import CatalogGrid from './CatalogGrid';
 
 export default function ResultList({ 
@@ -12,7 +11,6 @@ export default function ResultList({
   isSearchTriggered 
 }) {
   const [viewMode, setViewMode] = useState('lista');
-  const [detailsOpen, setDetailsOpen] = useState(null);
   const [lastFilters, setLastFilters] = useState(advancedFilters);
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,21 +63,6 @@ export default function ResultList({
       _isDisponivel: item.disponivel !== undefined ? item.disponivel : (item.exemplares > 0)
     }));
   }, [searchResults]);
-
-  useEffect(() => {
-    setDetailsOpen(null);
-  }, [filteredResults]);
-
-  const handleReserve = async (bookId) => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const user = JSON.parse(localStorage.getItem('userData'));
-      await ReservationService.createReservation({ userId: user.id, bookId }, token);
-      alert('Reserva realizada com sucesso!');
-    } catch (err) {
-      alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
-    }
-  };
 
   return (
     <div className="p-4">

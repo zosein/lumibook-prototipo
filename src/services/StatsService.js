@@ -152,32 +152,4 @@ const StatsService = {
   },
 };
 
-// Compatibilidade com rotas alternativas de estatísticas
-const StatsServiceCompat = {
-  async getUserStats(id, token) {
-    const res = await api.get(`/users/${id}/stats`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  },
-  async getStudentStats(id, token) {
-    const res = await api.get(`/students/${id}/stats`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  },
-  async getTeacherStats(id, token) {
-    const res = await api.get(`/teachers/${id}/stats`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  },
-  async getAdminStats(id, token) {
-    const res = await api.get(`/admin/${id}/stats`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  },
-};
-
 export default StatsService;

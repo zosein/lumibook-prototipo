@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
 	Book,
 	Home,
-	BookOpen,
 	Search,
 	ArrowLeft,
 	AlertTriangle,
@@ -15,7 +14,6 @@ import {
 	Shield,
 	Database,
 	Activity,
-	Clock,
 	CheckCircle,
 	User,
 	UserPlus,
