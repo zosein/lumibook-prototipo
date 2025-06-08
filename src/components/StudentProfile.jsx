@@ -87,7 +87,38 @@ function useUserProfile(user, isLoggedIn) {
 	return { profile, loading };
 }
 
-export default function StudentProfile({ user = { name: "ALUNO", avatar: null }, setCurrentPage, isLoggedIn, showReservations = true }) {
+// Função utilitária para tema visual
+function getProfileTheme(papel) {
+	switch (papel) {
+		case 'professor':
+			return {
+				color: 'purple',
+				bg: 'bg-gradient-to-r from-purple-700 to-purple-400',
+				avatarBorder: 'border-purple-500',
+				icon: <Users size={32} />, // ou outro ícone de professor
+				frase: 'Ensino e inspiração',
+			};
+		case 'bibliotecario':
+			return {
+				color: 'green',
+				bg: 'bg-gradient-to-r from-green-700 to-green-400',
+				avatarBorder: 'border-green-500',
+				icon: <BookOpen size={32} />, // ou outro ícone de bibliotecário
+				frase: 'Organização e conhecimento',
+			};
+		default:
+			return {
+				color: 'blue',
+				bg: 'bg-gradient-to-r from-blue-600 to-blue-400',
+				avatarBorder: 'border-blue-500',
+				icon: <Book size={32} />, // aluno
+				frase: 'Bem-vindo ao seu espaço de aprendizado!',
+			};
+	}
+}
+
+export default function StudentProfile({ user = { name: "ALUNO", avatar: null, papel: "aluno" }, setCurrentPage, isLoggedIn, showReservations = true }) {
+	const theme = getProfileTheme(user.papel);
 	const { stats, loading, error } = useUserStats(user, isLoggedIn);
 	const { profile } = useUserProfile(user, isLoggedIn);
 
@@ -123,7 +154,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 				const token = localStorage.getItem('authToken');
 				const data = await ReservationService.getActiveReservations(user.id, token);
 				setReservations(data);
-			} catch {
+			} catch (err) {
 				setReservations([]);
 			} finally {
 				setLoadingReservations(false);
@@ -148,8 +179,6 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 		fetchFines();
 	}, [user.id]);
 
-	// Garantir nome correto
-	const displayName = user.name || user.nome || "ALUNO";
 
 	// Handlers auxiliares
 	const handleNavigation = (page) => setCurrentPage(page);
@@ -179,7 +208,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 			const data = await ReservationService.getReservationHistory(user.id, token);
 			setReservationHistory(data);
 			setShowReservationHistory(true);
-		} catch {
+		} catch (err) {
 			setReservationHistory([]);
 			setShowReservationHistory(true);
 		} finally {
@@ -220,13 +249,53 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null },
 	return (
 		<div className="min-h-screen flex flex-col bg-white animate-in fade-in duration-300">
 			<ToastContainer position="top-right" autoClose={3000} hideProgressBar newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover />
-			<HeaderSection user={user} profile={profile} handleNavigation={handleNavigation} onOpenMenu={() => setMobileMenuOpen(true)} />
+			<header className={`w-full ${theme.bg} flex items-center justify-between px-8 py-4 shadow-lg rounded-b-2xl`}>
+				<div className="flex items-center gap-4">
+					<button className="sm:hidden flex items-center text-white p-2 mr-2" onClick={() => setMobileMenuOpen(true)} aria-label="Abrir menu">
+						<Menu size={28} />
+					</button>
+					<button
+						onClick={() => handleNavigation("home")}
+						className="hidden sm:flex items-center gap-2 text-white hover:text-blue-200 transition-all duration-200 p-2 rounded-lg hover:bg-blue-500 active:scale-95"
+					>
+						<ArrowLeft size={20} />
+						<span className="hidden sm:inline font-medium">Voltar</span>
+					</button>
+					<span className="font-bold text-2xl text-white tracking-widest flex items-center drop-shadow">
+						LUMIBOOK
+						<Book size={28} className="ml-2 text-yellow-400" />
+					</span>
+				</div>
+				<div className="flex items-center gap-4">
+					<div className={`w-12 h-12 bg-white rounded-full flex items-center justify-center border-4 ${theme.avatarBorder} shadow-lg`}>
+						{theme.icon}
+					</div>
+					<span className="font-semibold text-lg text-white drop-shadow">{user.name || user.nome}</span>
+				</div>
+			</header>
 			<MobileSidebar user={user} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} handleNavigation={(page) => { setMobileMenuOpen(false); handleNavigation(page); }} />
 			<div className="flex flex-1">
-				<Sidebar user={user} handleNavigation={handleNavigation} />
+				<aside className={`hidden sm:flex flex-col ${theme.bg} w-72 px-8 py-8 text-white shadow-2xl rounded-r-3xl`}>
+					<div className="flex flex-col items-center mb-10">
+						<div className={`w-20 h-20 bg-white rounded-full flex items-center justify-center border-4 ${theme.avatarBorder} shadow-lg`}>
+							{theme.icon}
+						</div>
+						<span className="mt-4 text-lg font-bold">{user.name || user.nome}</span>
+						<span className="text-xs text-blue-200">{user.email}</span>
+					</div>
+					<nav className="flex flex-col gap-2 mt-6">
+						<span className="text-xs mb-1 text-blue-200">BIBLIOTECA</span>
+						<NavItem icon={Home} label="Início" onClick={() => handleNavigation("home")} />
+						<NavItem icon={Search} label="Pesquisar" onClick={() => handleNavigation("resultados")} />
+						<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("reservas")} />
+					</nav>
+				</aside>
 				<main className="flex-1 p-4 sm:p-8 bg-gray-50">
 					<div className="max-w-6xl mx-auto">
-						<PageHeader user={user} />
+						<div className="mb-6">
+							<h1 className="text-3xl font-bold text-gray-900 mb-2">Meu Perfil</h1>
+							<p className="text-gray-600">{theme.frase}</p>
+						</div>
 						<StatsSection stats={stats} loading={loading} error={error} userType={user.papel} onRefresh={handleRefreshStats} />
 						<QuickActions handleNavigation={handleNavigation} />
 						<ProfileInfo user={user} profile={profile} />
@@ -434,6 +503,8 @@ function Modal({ open, onClose, title, children }) {
 // Atualizar ReservationsSection para usar Modal
 function ReservationsSection({ reservations, loading, history, loadingHistory, showHistory, onCancel, onFetchHistory, cancelingId }) {
 	const [modalOpen, setModalOpen] = useState(false);
+	const reservationsSafe = Array.isArray(reservations) ? reservations : [];
+	const historySafe = Array.isArray(history) ? history : [];
 	return (
 		<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
 			<h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -441,11 +512,11 @@ function ReservationsSection({ reservations, loading, history, loadingHistory, s
 			</h2>
 			{loading ? (
 				<div>Carregando reservas...</div>
-			) : reservations.length === 0 ? (
+			) : reservationsSafe.length === 0 ? (
 				<div>Nenhuma reserva ativa.</div>
 			) : (
 				<ul className="divide-y">
-					{reservations.map((res) => (
+					{reservationsSafe.map((res) => (
 						<li key={res.id} className="py-2 flex justify-between items-center">
 							<div>
 								<span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva})</span>
@@ -461,11 +532,11 @@ function ReservationsSection({ reservations, loading, history, loadingHistory, s
 			<Modal open={modalOpen && showHistory} onClose={() => setModalOpen(false)} title="Histórico de Reservas">
 				{loadingHistory ? (
 					<div>Carregando histórico...</div>
-				) : history.length === 0 ? (
+				) : historySafe.length === 0 ? (
 					<div>Nenhuma reserva anterior encontrada.</div>
 				) : (
 					<ul className="divide-y">
-						{history.map((res) => (
+						{historySafe.map((res) => (
 							<li key={res.id} className="py-2 flex justify-between items-center">
 								<div>
 									<span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva} - {res.status})</span>
@@ -482,21 +553,23 @@ function ReservationsSection({ reservations, loading, history, loadingHistory, s
 // Atualizar FinesSection para usar Modal
 function FinesSection({ fines, loading, history, loadingHistory, showHistory, onPay, onFetchHistory, payingId }) {
 	const [modalOpen, setModalOpen] = useState(false);
+	const finesSafe = Array.isArray(fines) ? fines : [];
+	const historySafe = Array.isArray(history) ? history : [];
 	return (
 		<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
 			<h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-				<CoinsIcon size={24} /> Multas Ativas
+				<CoinsIcon size={24} /> Multas
 			</h2>
 			{loading ? (
 				<div>Carregando multas...</div>
-			) : fines.length === 0 ? (
-				<div>Nenhuma multa ativa.</div>
+			) : finesSafe.length === 0 ? (
+				<div>Nenhuma multa pendente.</div>
 			) : (
 				<ul className="divide-y">
-					{fines.map((fine) => (
+					{finesSafe.map((fine) => (
 						<li key={fine.id} className="py-2 flex justify-between items-center">
 							<div>
-								<span className="font-medium">{fine.descricao}</span> <span className="text-sm text-gray-500">R$ {fine.valor}</span>
+								<span className="font-medium">R$ {fine.valor?.toFixed(2)}</span> <span className="text-sm text-gray-500">{fine.motivo}</span>
 							</div>
 							<button className="px-3 py-1 bg-green-600 text-white rounded text-sm" onClick={() => onPay(fine.id)} disabled={payingId === fine.id}>
 								{payingId === fine.id ? 'Pagando...' : 'Pagar'}
@@ -509,14 +582,14 @@ function FinesSection({ fines, loading, history, loadingHistory, showHistory, on
 			<Modal open={modalOpen && showHistory} onClose={() => setModalOpen(false)} title="Histórico de Multas">
 				{loadingHistory ? (
 					<div>Carregando histórico...</div>
-				) : history.length === 0 ? (
+				) : historySafe.length === 0 ? (
 					<div>Nenhuma multa anterior encontrada.</div>
 				) : (
 					<ul className="divide-y">
-						{history.map((fine) => (
+						{historySafe.map((fine) => (
 							<li key={fine.id} className="py-2 flex justify-between items-center">
 								<div>
-									<span className="font-medium">{fine.descricao}</span> <span className="text-sm text-gray-500">R$ {fine.valor} - {fine.status}</span>
+									<span className="font-medium">R$ {fine.valor?.toFixed(2)}</span> <span className="text-sm text-gray-500">{fine.motivo}</span>
 								</div>
 							</li>
 						))}

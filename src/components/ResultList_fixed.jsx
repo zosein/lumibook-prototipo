@@ -42,7 +42,9 @@ export default function ResultList({
         }
       });
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/livros/buscar?${params}`, {
+      // Corrigir endpoint para '/books' (listagem simples) ou '/books/search' (busca avançada)
+      const endpoint = params.toString() ? '/books/search' : '/books';
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}${endpoint}?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json',

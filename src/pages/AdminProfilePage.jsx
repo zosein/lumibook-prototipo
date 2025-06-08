@@ -37,21 +37,6 @@ export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onL
 
   return (
     <>
-      {/* Botão para abrir modal de cadastro de bibliotecário */}
-      {user.papel === 'admin' && (
-        <button
-          className="bg-orange-600 text-white px-4 py-2 rounded-lg mb-4 hover:bg-orange-700"
-          onClick={() => setShowModal(true)}
-        >
-          Cadastrar Bibliotecário
-        </button>
-      )}
-      <button
-        className="bg-gray-600 text-white px-4 py-2 rounded-lg mb-4 hover:bg-gray-700 ml-2"
-        onClick={exportFrontReqResLog}
-      >
-        Exportar Log de Req/Res
-      </button>
       {/* Modal de cadastro de bibliotecário */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -93,7 +78,7 @@ export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onL
           </div>
         </div>
       )}
-      {/* Resto do conteúdo do admin */}
+  
       <AdminProfile 
         user={adminData}
         setCurrentPage={setCurrentPage}

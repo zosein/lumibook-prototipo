@@ -1,17 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Book } from 'lucide-react';
 import CatalogService from '../services/CatalogService';
+import CatalogGrid from './CatalogGrid';
 
 export default function HomeContent({ setCurrentPage, navigateToDetails }) {
   const [recentBooks, setRecentBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [catalogBooks, setCatalogBooks] = useState([]);
+  const [catalogTitle, setCatalogTitle] = useState('');
+  const [catalogLoading, setCatalogLoading] = useState(false);
 
   useEffect(() => {
     const fetchRecentBooks = async () => {
       try {
         const token = localStorage.getItem('authToken');
         const books = await CatalogService.getRecentBooks(token);
-        setRecentBooks(Array.isArray(books) ? books : []);
+        // Buscar detalhes completos de cada livro
+        const detailedBooks = await Promise.all(
+          (Array.isArray(books) ? books : []).map(async (b) => {
+            try {
+              return await CatalogService.getBookById(b.id, token);
+            } catch {
+              return b; // fallback para dados básicos se falhar
+            }
+          })
+        );
+        setRecentBooks(detailedBooks);
       } catch (error) {
         setRecentBooks([]);
       } finally {
@@ -29,11 +44,33 @@ export default function HomeContent({ setCurrentPage, navigateToDetails }) {
     'Teses e Dissertações': 'Tese',
   };
 
+  // Função para buscar livros por categoria
+  const fetchCatalogByCategory = async (categoria) => {
+    setCatalogLoading(true);
+    setShowCatalog(true);
+    setCatalogTitle(categoria);
+    try {
+      const token = localStorage.getItem('authToken');
+      const params = { tipo: categoriaParaMaterialType[categoria] };
+      const books = await CatalogService.searchBooks(params, token);
+      setCatalogBooks(Array.isArray(books) ? books : []);
+    } catch (error) {
+      setCatalogBooks([]);
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
   // Função para disparar busca por categoria
   const handleCategoriaClick = (categoria) => {
-    // Salva o filtro no localStorage para ser lido pelo App
-    localStorage.setItem('lumibook_categoria_filtro', categoriaParaMaterialType[categoria] || 'Todos');
-    setCurrentPage('resultados');
+    fetchCatalogByCategory(categoria);
+  };
+
+  // Função para fechar catálogo visual
+  const handleCloseCatalog = () => {
+    setShowCatalog(false);
+    setCatalogBooks([]);
+    setCatalogTitle('');
   };
 
   return (
@@ -53,38 +90,57 @@ export default function HomeContent({ setCurrentPage, navigateToDetails }) {
           ))}
         </div>
       </div>
-      
-      <div>
-        <h2 className="text-lg font-medium mb-2">Acervo Recente</h2>
-        <div className="bg-white border border-gray-200 rounded-md">
-          {loading ? (
-            <div className="p-4 text-center text-gray-500">
-              Carregando livros recentes...
-            </div>
-          ) : recentBooks.length > 0 ? (
-            recentBooks.map((item) => (
-              <div 
-                key={item.id} 
-                className="p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
-                onClick={() => navigateToDetails(item.id)}
-              >
-                <div className="flex justify-between">
-                  <h3 className="font-medium">{item.titulo}</h3>
-                  <span className={`text-sm px-2 py-0.5 rounded ${item.disponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {item.disponivel ? 'Disponível' : 'Indisponível'}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">{item.autor}, {item.ano}</p>
-                <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full mt-1">{item.tipo}</span>
-              </div>
-            ))
-          ) : (
-            <div className="p-4 text-center text-gray-500">
-              Nenhum livro encontrado. Verifique a conexão com a API.
-            </div>
-          )}
+
+      {/* Catálogo visual estilo Netflix */}
+      {showCatalog && (
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-bold">{catalogTitle}</h2>
+            <button className="text-blue-600 hover:underline" onClick={handleCloseCatalog}>Fechar catálogo</button>
+          </div>
+          <CatalogGrid books={catalogBooks} loading={catalogLoading} onBookClick={navigateToDetails} />
         </div>
-      </div>
+      )}
+
+      {/* Só mostra acervo recente se o catálogo não estiver aberto */}
+      {!showCatalog && (
+        <div>
+          <h2 className="text-lg font-medium mb-2">Acervo Recente</h2>
+          <div className="bg-white border border-gray-200 rounded-md">
+            {loading ? (
+              <div className="p-4 text-center text-gray-500">
+                Carregando livros recentes...
+              </div>
+            ) : recentBooks.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
+                {recentBooks.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md cursor-pointer flex flex-col items-center p-3"
+                    onClick={() => navigateToDetails(item.id)}
+                  >
+                    <div className="w-28 h-40 bg-gray-200 rounded mb-2 flex items-center justify-center overflow-hidden">
+                      {item.capa ? (
+                        <img src={item.capa} alt={item.titulo} className="object-cover w-full h-full" />
+                      ) : (
+                        <Book size={48} className="text-gray-400" />
+                      )}
+                    </div>
+                    <h3 className="font-medium text-center text-sm mb-1 line-clamp-2">{item.titulo}</h3>
+                    <p className="text-xs text-center text-gray-600 mb-1">{item.autor}</p>
+                    <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full mb-1">{item.tipo}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${item.disponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{item.disponivel ? 'Disponível' : 'Indisponível'}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-gray-500">
+                Nenhum livro encontrado. Verifique a conexão com a API.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

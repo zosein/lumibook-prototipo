@@ -4,7 +4,6 @@ import api from "./api";
 const ReservationService = {
   // Cria uma nova reserva para um livro e usuário
   async createReservation({ userId, bookId }) {
-    // Regra: só permite reserva se o livro estiver disponível
     return api.post('/reservations', { userId, bookId });
   },
 
@@ -15,7 +14,6 @@ const ReservationService = {
 
   // Cancela uma reserva existente
   async cancelReservation(reservationId) {
-    // Regra: só pode cancelar reservas que ainda não foram retiradas
     return api.delete(`/reservations/${reservationId}`);
   },
 
@@ -26,7 +24,6 @@ const ReservationService = {
 
   // Atualiza o status de uma reserva (ex: retirada, devolvida)
   async updateReservationStatus(reservationId, status) {
-    // Status possíveis: 'pendente', 'retirada', 'devolvida', 'cancelada'
     return api.patch(`/reservations/${reservationId}`, { status });
   },
 };
@@ -37,19 +34,24 @@ export const createReservation = async (dados, token) => {
   const res = await api.post("/reservations", dados, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return {
-    livroId: res.data.livroId || null,
-    exemplarId: res.data.exemplarId || null,
-    dataReserva: res.data.dataReserva || '',
-    ...res.data
-  };
+  const result = res.data;
+  if (result.success) {
+    return result.data;
+  } else {
+    throw new Error(result.error || 'Erro ao criar reserva');
+  }
 };
 
 export const cancelReservation = async (reservaId, token) => {
   const res = await api.delete(`/reservations/${reservaId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.data;
+  const result = res.data;
+  if (result.success) {
+    return result.data;
+  } else {
+    throw new Error(result.error || 'Erro ao cancelar reserva');
+  }
 };
 
 export const getActiveReservations = async (userId, token) => {
@@ -57,22 +59,33 @@ export const getActiveReservations = async (userId, token) => {
     params: { userId },
     headers: { Authorization: `Bearer ${token}` },
   });
-  return (res.data || []).map(r => ({
-    livroId: r.livroId || null,
-    exemplarId: r.exemplarId || null,
-    dataReserva: r.dataReserva || '',
-    ...r
-  }));
+  const result = res.data;
+  if (result.success) {
+    return (result.data || []).map(r => ({
+      livroId: r.livroId || null,
+      exemplarId: r.exemplarId || null,
+      dataReserva: r.dataReserva || '',
+      ...r
+    }));
+  } else {
+    throw new Error(result.error || 'Erro ao buscar reservas ativas');
+  }
 };
 
-export const getReservationHistory = async (token) => {
+export const getReservationHistory = async (userId, token) => {
   const res = await api.get(`/reservations/historico`, {
+    params: { userId },
     headers: { Authorization: `Bearer ${token}` },
   });
-  return (res.data || []).map(r => ({
-    livroId: r.livroId || null,
-    exemplarId: r.exemplarId || null,
-    dataReserva: r.dataReserva || '',
-    ...r
-  }));
+  const result = res.data;
+  if (result.success) {
+    return (result.data || []).map(r => ({
+      livroId: r.livroId || null,
+      exemplarId: r.exemplarId || null,
+      dataReserva: r.dataReserva || '',
+      ...r
+    }));
+  } else {
+    throw new Error(result.error || 'Erro ao buscar histórico de reservas');
+  }
 }; 

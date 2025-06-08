@@ -17,10 +17,14 @@ import {
 	Activity,
 	Clock,
 	CheckCircle,
+	User,
+	UserPlus,
 } from "lucide-react";
 import { useCatalogacao } from "../hooks/useCatalogacao";
 import { getSystemActivities } from "../services/UserService";
 import { getProfile } from "../services/profileService";
+import CatalogService from '../services/CatalogService';
+import * as UserService from '../services/UserService';
 
 // Hook personalizado para buscar estatísticas do admin
 const useAdminStats = (user, isLoggedIn) => {
@@ -41,7 +45,7 @@ const useAdminStats = (user, isLoggedIn) => {
 
 			try {
 				// Usar StatsService ou endpoint específico para admin
-				const endpoint = `/api/admin/${user.id}/estatisticas`;
+				const endpoint = `/admin/${user.id}/estatisticas`;
 				const headers = {
 					Authorization: `Bearer ${localStorage.getItem("authToken")}`,
 					"Content-Type": "application/json",
@@ -85,8 +89,27 @@ const useAdminStats = (user, isLoggedIn) => {
 	return { stats, loading, error };
 };
 
-// REMOVIDO: Funções de dados mockados (getMockAdminStats, getOfflineAdminStats)
-// Agora todas as estatísticas de admin vêm da API
+// Função utilitária para tema visual
+function getProfileTheme(papel) {
+	switch (papel) {
+		case 'admin':
+			return {
+				color: 'red',
+				bg: 'bg-gradient-to-r from-blue-800 to-red-700',
+				avatarBorder: 'border-red-500',
+				icon: <Shield size={32} />,
+				frase: 'Administração total do sistema',
+			};
+		default:
+			return {
+				color: 'blue',
+				bg: 'bg-gradient-to-r from-blue-600 to-blue-400',
+				avatarBorder: 'border-blue-500',
+				icon: <User size={32} />,
+				frase: 'Bem-vindo ao seu espaço de aprendizado!',
+			};
+	}
+}
 
 export default function AdminProfile({
 	user = {
@@ -97,6 +120,7 @@ export default function AdminProfile({
 	isLoggedIn,
 	onLogout,
 }) {
+	const theme = getProfileTheme(user.papel);
 	// Hooks devem estar no topo
 	const { stats, loading, error } = useAdminStats(user, isLoggedIn);
 	const [activeSection, setActiveSection] = useState("dashboard");
@@ -132,6 +156,9 @@ export default function AdminProfile({
 						error={error}
 						onRefresh={handleRefreshStats}
 						setActiveSection={setActiveSection}
+						onCadastrar={() => {}}
+						onExportar={() => {}}
+						user={user}
 					/>
 				);
 			case "catalogacao":
@@ -151,6 +178,10 @@ export default function AdminProfile({
 						loading={loading}
 						error={error}
 						onRefresh={handleRefreshStats}
+						setActiveSection={setActiveSection}
+						onCadastrar={() => {}}
+						onExportar={() => {}}
+						user={user}
 					/>
 				);
 		}
@@ -160,8 +191,7 @@ export default function AdminProfile({
 
 	return (
 		<div className="min-h-screen flex flex-col bg-white animate-in fade-in duration-300">
-			{/* Header idêntico ao StudentProfile */}
-			<header className="w-full bg-blue-600 flex items-center justify-between px-8 py-3 shadow-lg">
+			<header className={`w-full ${theme.bg} flex items-center justify-between px-8 py-4 shadow-lg rounded-b-2xl`}>
 				<div className="flex items-center gap-4">
 					<button
 						onClick={() => handleNavigation("home")}
@@ -171,43 +201,23 @@ export default function AdminProfile({
 						<span className="hidden sm:inline font-medium">Voltar</span>
 					</button>
 
-					<span className="font-bold text-xl text-white tracking-widest flex items-center">
+					<span className="font-bold text-2xl text-white tracking-widest flex items-center drop-shadow">
 						LUMIBOOK
-						<Book
-							size={24}
-							className="ml-2 text-yellow-400"
-							aria-hidden="true"
-						/>
+						<Book size={28} className="ml-2 text-yellow-400" />
 					</span>
 				</div>
-				<div className="flex items-center gap-3">
-					<div className="w-8 h-8 bg-white text-red-600 rounded-full flex items-center justify-center border-2 border-white">
-						<Shield size={16} />
-					</div>
-					<span className="font-medium text-white">{user.nome}</span>
-					<div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+				<div className="flex items-center gap-4">
+					<img src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=3B82F6&color=fff&size=128`} alt="Avatar" className="w-12 h-12 rounded-full border-4" />
+					<span className="font-semibold text-lg text-white drop-shadow">{user.nome}</span>
 				</div>
 			</header>
 
 			<div className="flex flex-1">
-				{/* Sidebar idêntica ao StudentProfile */}
-				<aside className="hidden sm:flex flex-col bg-blue-700 w-64 px-6 py-5 text-white shadow-lg">
-					<div className="mb-6">
-						<span className="text-2xl font-bold">ADMINISTRADOR</span>
-						<div className="text-xs text-blue-200 mt-1 flex items-center gap-1">
-							<div className="w-1 h-1 bg-red-400 rounded-full"></div>
-							Sistema Online
-						</div>
-					</div>
-					<div className="flex flex-col items-center mb-6">
-						<div className="w-16 h-16 bg-white text-red-600 rounded-full flex items-center justify-center border-2 border-white">
-							<Shield size={28} />
-						</div>
-						<span className="mt-3 text-sm">Bem-vindo(a)</span>
-						<span className="font-semibold">{user.nome}</span>
-						{user.email && (
-							<span className="text-xs text-blue-200 mt-1">{user.email}</span>
-						)}
+				<aside className="hidden sm:flex flex-col bg-gradient-to-b from-blue-800 to-blue-700 w-72 px-8 py-8 text-white shadow-2xl rounded-r-3xl">
+					<div className="flex flex-col items-center mb-10">
+						<img src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=3B82F6&color=fff&size=128`} alt="Avatar" className="w-20 h-20 rounded-full border-4" />
+						<span className="mt-4 text-lg font-bold">{user.nome}</span>
+						<span className="text-xs text-blue-200">{user.email}</span>
 					</div>
 					<nav className="flex flex-col gap-2 mt-6">
 						<span className="text-xs mb-1 text-blue-200">ADMINISTRAÇÃO</span>
@@ -264,17 +274,11 @@ export default function AdminProfile({
 					</nav>
 				</aside>
 
-				{/* Conteúdo Principal - REMOVIDO A BARRA DE PESQUISA */}
 				<main className="flex-1 p-4 sm:p-8 bg-gray-50">
 					<div className="max-w-6xl mx-auto">
-						{/* Cabeçalho da página */}
 						<div className="mb-6">
-							<h1 className="text-3xl font-bold text-gray-900 mb-2">
-								Painel Administrativo
-							</h1>
-							<p className="text-gray-600">
-								Gerencie o sistema bibliotecário e monitore as atividades
-							</p>
+							<h1 className="text-3xl font-bold text-gray-900 mb-2">Painel Administrativo</h1>
+							<p className="text-gray-600">{theme.frase}</p>
 						</div>
 
 						{/* Conteúdo da seção ativa - REMOVIDO O CONTAINER DA BARRA DE PESQUISA */}
@@ -328,9 +332,30 @@ function DashboardSection({
 	error,
 	onRefresh,
 	setActiveSection,
+	onCadastrar,
+	onExportar,
+	user
 }) {
 	const [activities, setActivities] = useState([]);
 	const [activitiesLoading, setActivitiesLoading] = useState(true);
+	const [totalObras, setTotalObras] = useState(0);
+	const [totalUsuariosAtivos, setTotalUsuariosAtivos] = useState(0);
+
+	useEffect(() => {
+		async function fetchTotals() {
+			try {
+				const token = localStorage.getItem('authToken');
+				const livros = await CatalogService.getBooks();
+				setTotalObras(Array.isArray(livros.data) ? livros.data.length : 0);
+				const usuarios = await UserService.getAllUsers ? await UserService.getAllUsers(token) : [];
+				setTotalUsuariosAtivos(Array.isArray(usuarios) ? usuarios.filter(u => u.statusConta === 'ativa').length : 0);
+			} catch {
+				setTotalObras(0);
+				setTotalUsuariosAtivos(0);
+			}
+		}
+		fetchTotals();
+	}, []);
 
 	useEffect(() => {
 		const loadActivities = async () => {
@@ -353,40 +378,39 @@ function DashboardSection({
 		<section className="space-y-8">
 			{/* Estatísticas principais */}
 			<div className="mb-8">
-				<div className="flex justify-between items-center mb-4">
-					<h2 className="text-xl font-semibold text-gray-900">
-						Estatísticas do Sistema
-					</h2>
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+					<div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col items-center">
+						<span className="text-2xl font-bold text-blue-700">{totalObras}</span>
+						<span className="text-sm text-gray-600 mt-1">Total de Obras</span>
+					</div>
+					<div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col items-center">
+						<span className="text-2xl font-bold text-green-700">{totalUsuariosAtivos}</span>
+						<span className="text-sm text-gray-600 mt-1">Usuários Ativos</span>
+					</div>
+					{/* Outras estatísticas do dashboard... */}
 					{stats && (
-						<div className="flex items-center gap-2 text-sm text-gray-500">
-							{stats.fonte === "offline" && (
-								<div className="flex items-center gap-1 text-amber-600">
-									<AlertTriangle size={14} />
-									<span>Dados offline</span>
-								</div>
-							)}
-							{stats.ultimaAtualizacao && (
-								<span>
-									Atualizado:{" "}
-									{new Date(stats.ultimaAtualizacao).toLocaleTimeString()}
-								</span>
-							)}
-							<button
-								onClick={onRefresh}
-								className="text-blue-600 hover:text-blue-700 ml-2"
-							>
-								Atualizar
-							</button>
-						</div>
+						<>
+							<div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col items-center">
+								<span className="text-2xl font-bold text-orange-700">{stats.emprestimosHoje || 0}</span>
+								<span className="text-sm text-gray-600 mt-1">Empréstimos Hoje</span>
+							</div>
+							<div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col items-center">
+								<span className="text-2xl font-bold text-purple-700">{stats.obrasDisponiveis?.toLocaleString() || 0}</span>
+								<span className="text-sm text-gray-600 mt-1">Obras Disponíveis</span>
+							</div>
+						</>
 					)}
 				</div>
-
-				{loading ? (
-					<AdminStatsLoadingGrid />
-				) : error && !stats ? (
-					<AdminStatsErrorState error={error} onRetry={onRefresh} />
-				) : (
-					<AdminStatsGrid stats={stats} />
+				{loading && <div className="text-center py-4">Carregando estatísticas...</div>}
+				{error && !stats && (
+					<div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+						<div className="flex items-center justify-center gap-2 text-red-600 mb-2">
+							<AlertTriangle size={24} />
+							<h3 className="font-semibold">Erro ao carregar estatísticas</h3>
+						</div>
+						<p className="text-red-700 text-sm mb-4">{error}</p>
+						<button onClick={onRefresh} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">Tentar novamente</button>
+					</div>
 				)}
 			</div>
 
@@ -400,39 +424,23 @@ function DashboardSection({
 					{activitiesLoading ? (
 						<div className="text-center py-4">
 							<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-							<p className="text-sm text-gray-500 mt-2">
-								Carregando atividades...
-							</p>
+							<p className="text-sm text-gray-500 mt-2">Carregando atividades...</p>
 						</div>
 					) : activities.length === 0 ? (
 						<div className="text-center py-4">
-							<p className="text-gray-500">
-								Nenhuma atividade recente encontrada
-							</p>
+							<p className="text-gray-500">Nenhuma atividade recente encontrada</p>
 						</div>
 					) : (
 						activities.map((activity, index) => (
-							<div
-								key={index}
-								className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-							>
-								<div
-									className={`p-2 bg-${activity.color}-100 rounded-lg flex-shrink-0`}
-								>
-									<activity.icon
-										size={16}
-										className={`text-${activity.color}-600`}
-									/>
+							<div key={index} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors duration-200">
+								<div className={`p-2 bg-${activity.color}-100 rounded-lg flex-shrink-0`}>
+									<activity.icon size={16} className={`text-${activity.color}-600`} />
 								</div>
 								<div className="flex-1 min-w-0">
 									<p className="font-medium text-gray-900">{activity.action}</p>
-									<p className="text-sm text-gray-600 truncate">
-										{activity.details}
-									</p>
+									<p className="text-sm text-gray-600 truncate">{activity.details}</p>
 								</div>
-								<span className="text-xs text-gray-500 flex-shrink-0">
-									{activity.time}
-								</span>
+								<span className="text-xs text-gray-500 flex-shrink-0">{activity.time}</span>
 							</div>
 						))
 					)}
@@ -440,166 +448,53 @@ function DashboardSection({
 			</div>
 
 			{/* Ações rápidas */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-				<AdminQuickAction
-					icon={<Plus size={24} />}
-					title="Catalogar Obra"
-					description="Adicionar novos livros ao acervo"
-					onClick={() => setActiveSection("catalogacao")}
-				/>
-				<AdminQuickAction
-					icon={<Users size={24} />}
-					title="Gerenciar Usuários"
-					description="Visualizar e gerenciar usuários"
-					onClick={() => setActiveSection("usuarios")}
-				/>
-				<AdminQuickAction
-					icon={<FileText size={24} />}
-					title="Relatórios"
-					description="Gerar relatórios e estatísticas"
-					onClick={() => setActiveSection("relatorios")}
-				/>
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+				<button onClick={() => setActiveSection("catalogacao")}
+					className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95">
+					<div className="flex items-center gap-3 mb-2">
+						<Plus size={24} className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+						<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">Catalogar Obra</h3>
+					</div>
+					<p className="text-sm text-gray-600">Adicionar novos livros ao acervo</p>
+				</button>
+				<button onClick={() => setActiveSection("usuarios")}
+					className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95">
+					<div className="flex items-center gap-3 mb-2">
+						<Users size={24} className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+						<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">Gerenciar Usuários</h3>
+					</div>
+					<p className="text-sm text-gray-600">Visualizar e gerenciar usuários</p>
+				</button>
+				<button onClick={() => setActiveSection("relatorios")}
+					className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95">
+					<div className="flex items-center gap-3 mb-2">
+						<FileText size={24} className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+						<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">Relatórios</h3>
+					</div>
+					<p className="text-sm text-gray-600">Gerar relatórios e estatísticas</p>
+				</button>
+				{user.papel === 'admin' && (
+					<button onClick={onCadastrar}
+						className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95">
+						<div className="flex items-center gap-3 mb-2">
+							<UserPlus size={24} className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+							<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">Cadastrar Bibliotecário</h3>
+						</div>
+						<p className="text-sm text-gray-600">Adicionar novo bibliotecário</p>
+					</button>
+				)}
+				{user.papel === 'admin' && (
+					<button onClick={onExportar}
+						className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95">
+						<div className="flex items-center gap-3 mb-2">
+							<FileText size={24} className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+							<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">Exportar Log de Req/Res</h3>
+						</div>
+						<p className="text-sm text-gray-600">Baixar log de requisições</p>
+					</button>
+				)}
 			</div>
 		</section>
-	);
-}
-
-// Grid de estatísticas do admin
-function AdminStatsGrid({ stats }) {
-	if (!stats) return null;
-
-	const statsCards = [
-		{
-			key: "totalObras",
-			value: stats.totalObras?.toLocaleString() || "0",
-			label: "Total de Obras",
-			desc: "Livros catalogados no sistema",
-			icon: <BookOpen size={32} />,
-			color: "bg-blue-50 border-blue-200",
-			iconColor: "text-blue-600",
-		},
-		{
-			key: "usuariosAtivos",
-			value: stats.usuariosAtivos?.toLocaleString() || "0",
-			label: "Usuários Ativos",
-			desc: "Usuários cadastrados no sistema",
-			icon: <Users size={32} />,
-			color: "bg-green-50 border-green-200",
-			iconColor: "text-green-600",
-		},
-		{
-			key: "emprestimosHoje",
-			value: stats.emprestimosHoje || "0",
-			label: "Empréstimos Hoje",
-			desc: "Empréstimos realizados hoje",
-			icon: <Clock size={32} />,
-			color: "bg-orange-50 border-orange-200",
-			iconColor: "text-orange-600",
-		},
-		{
-			key: "obrasDisponiveis",
-			value: stats.obrasDisponiveis?.toLocaleString() || "0",
-			label: "Obras Disponíveis",
-			desc: "Livros disponíveis para empréstimo",
-			icon: <Database size={32} />,
-			color: "bg-purple-50 border-purple-200",
-			iconColor: "text-purple-600",
-		},
-	];
-
-	return (
-		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			{statsCards.map(({ key, ...rest }) => (
-				<AdminStatCard key={key} {...rest} />
-			))}
-		</div>
-	);
-}
-
-// Componente de loading para as estatísticas do admin
-function AdminStatsLoadingGrid() {
-	return (
-		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			{Array.from({ length: 4 }).map((_, index) => (
-				<div
-					key={index}
-					className="bg-white border border-gray-200 rounded-xl p-4 animate-pulse"
-				>
-					<div className="flex items-center justify-between mb-3">
-						<div className="h-8 bg-gray-300 rounded w-16"></div>
-						<div className="h-8 w-8 bg-gray-300 rounded"></div>
-					</div>
-					<div className="space-y-2">
-						<div className="h-4 bg-gray-300 rounded w-24"></div>
-						<div className="h-3 bg-gray-300 rounded w-32"></div>
-					</div>
-				</div>
-			))}
-		</div>
-	);
-}
-
-// Componente de erro para as estatísticas do admin
-function AdminStatsErrorState({ error, onRetry }) {
-	return (
-		<div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-			<div className="flex items-center justify-center gap-2 text-red-600 mb-2">
-				<AlertTriangle size={24} />
-				<h3 className="font-semibold">Erro ao carregar estatísticas</h3>
-			</div>
-			<p className="text-red-700 text-sm mb-4">{error}</p>
-			<button
-				onClick={onRetry}
-				className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-			>
-				Tentar novamente
-			</button>
-		</div>
-	);
-}
-
-// Card de estatística do admin
-function AdminStatCard({
-	value,
-	label,
-	desc,
-	icon,
-	color = "bg-gray-50 border-gray-200",
-	iconColor = "text-gray-600",
-}) {
-	return (
-		<div
-			className={`${color} border rounded-xl p-4 transition-all duration-200 hover:shadow-md hover:scale-105 cursor-default`}
-		>
-			<div className="flex items-center justify-between mb-3">
-				<span className="text-2xl font-bold text-gray-900">{value}</span>
-				<div className={`${iconColor}`}>{icon}</div>
-			</div>
-			<div>
-				<h3 className="font-semibold text-gray-900 text-sm">{label}</h3>
-				<p className="text-xs text-gray-600 mt-1">{desc}</p>
-			</div>
-		</div>
-	);
-}
-
-// Ação rápida do admin
-function AdminQuickAction({ icon, title, description, onClick }) {
-	return (
-		<button
-			onClick={onClick}
-			className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
-		>
-			<div className="flex items-center gap-3 mb-2">
-				<div className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200">
-					{icon}
-				</div>
-				<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">
-					{title}
-				</h3>
-			</div>
-			<p className="text-sm text-gray-600">{description}</p>
-		</button>
 	);
 }
 
@@ -831,7 +726,7 @@ function CatalogacaoSection({ adminId }) {
 								}`}
 							>
 								<option value="">Selecione o tipo</option>
-								{tiposObra.map((tipo) => (
+								{Array.isArray(tiposObra) && tiposObra.map((tipo) => (
 									<option key={tipo} value={tipo}>
 										{tipo}
 									</option>
@@ -857,7 +752,7 @@ function CatalogacaoSection({ adminId }) {
 								}`}
 							>
 								<option value="">Selecione a categoria</option>
-								{categorias.map((categoria) => (
+								{Array.isArray(categorias) && categorias.map((categoria) => (
 									<option key={categoria} value={categoria}>
 										{categoria}
 									</option>
@@ -1182,22 +1077,26 @@ function ConfiguracoesSection({ user, onLogout }) {
 
 			{/* Ações de configuração */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-				<AdminQuickAction
-					icon={<Settings size={24} />}
-					title="Configurações do Sistema"
-					description="Gerenciar configurações gerais"
-					onClick={() => {
-						/* TODO: Implementar */
-					}}
-				/>
-				<AdminQuickAction
-					icon={<Database size={24} />}
-					title="Backup dos Dados"
-					description="Fazer backup do sistema"
-					onClick={() => {
-						/* TODO: Implementar */
-					}}
-				/>
+				<button
+					onClick={() => {/* TODO: Implementar */}}
+					className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
+				>
+					<div className="flex items-center gap-3 mb-2">
+						<Settings size={24} className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+						<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">Configurações do Sistema</h3>
+					</div>
+					<p className="text-sm text-gray-600">Gerenciar configurações gerais</p>
+				</button>
+				<button
+					onClick={() => {/* TODO: Implementar */}}
+					className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
+				>
+					<div className="flex items-center gap-3 mb-2">
+						<Database size={24} className="text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+						<h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">Backup dos Dados</h3>
+					</div>
+					<p className="text-sm text-gray-600">Fazer backup do sistema</p>
+				</button>
 				<button
 					onClick={onLogout}
 					className="bg-red-50 border border-red-200 rounded-xl p-4 text-left hover:shadow-md hover:border-red-300 transition-all duration-200 group active:scale-95"
@@ -1206,9 +1105,7 @@ function ConfiguracoesSection({ user, onLogout }) {
 						<div className="text-red-600 group-hover:text-red-700 transition-colors duration-200">
 							<ArrowLeft size={24} />
 						</div>
-						<h3 className="font-semibold text-red-900 group-hover:text-red-700 transition-colors duration-200">
-							Sair da Conta
-						</h3>
+						<h3 className="font-semibold text-red-900 group-hover:text-red-700 transition-colors duration-200">Sair da Conta</h3>
 					</div>
 					<p className="text-sm text-red-600">Fazer logout do sistema</p>
 				</button>

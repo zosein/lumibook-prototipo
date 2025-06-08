@@ -82,8 +82,12 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
       <div className="bg-white border border-gray-200 rounded-md p-4">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-1/4 flex justify-center">
-            <div className="bg-gray-200 p-6 rounded flex items-center justify-center">
-              <BookOpen size={80} className="text-gray-500" />
+            <div className="w-40 h-56 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
+              {livro.capa ? (
+                <img src={livro.capa} alt={livro.titulo} className="object-cover w-full h-full" />
+              ) : (
+                <BookOpen size={80} className="text-gray-500" />
+              )}
             </div>
           </div>
           <div className="md:w-3/4">

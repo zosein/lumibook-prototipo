@@ -38,7 +38,7 @@ export default function Header({ setCurrentPage, isLoggedIn, user, onLogout }) {
 
   const getInitials = (name) => {
     if (!name) return 'U';
-    return name
+    return (name || '')
       .split(' ')
       .slice(0, 2)
       .map(word => word.charAt(0).toUpperCase())
@@ -65,7 +65,7 @@ export default function Header({ setCurrentPage, isLoggedIn, user, onLogout }) {
               <div className="w-8 h-8 bg-white text-blue-700 rounded-full flex items-center justify-center font-semibold text-sm">
                 {initials}
               </div>
-              <span className="hidden sm:inline font-medium">Olá, {displayName.split(' ')[0]}</span>
+              <span className="hidden sm:inline font-medium">Olá, {(displayName || '').split(' ')[0]}</span>
               <ChevronDown 
                 size={16} 
                 className={`transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} 

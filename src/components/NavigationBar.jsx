@@ -1,4 +1,4 @@
-import { Home, Search, Clock, User, Shield, BookOpen, FileText, Book, GraduationCap } from 'lucide-react';
+import { Home, Search, Clock, User, Shield } from 'lucide-react';
 
 export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn, user }) {
   // Define os itens de navegação de acordo com o tipo de usuário

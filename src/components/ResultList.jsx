@@ -2,6 +2,7 @@ import { List, Grid, ChevronDown, BookOpen, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import CatalogService from '../services/CatalogService';
 import * as ReservationService from '../services/ReservationService';
+import CatalogGrid from './CatalogGrid';
 
 export default function ResultList({ 
   searchQuery, 
@@ -18,23 +19,27 @@ export default function ResultList({
   const [error, setError] = useState(null);
 
   const performSearch = useCallback(async () => {
-    if (!isSearchTriggered || !searchQuery) {
-      setSearchResults([]);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('authToken');
-      const params = {
-        q: searchQuery,
-        tipo: lastFilters.materialType !== 'Todos' ? lastFilters.materialType : undefined,
-        categoria: lastFilters.category !== 'Todas' ? lastFilters.category : undefined,
-        disponivel: lastFilters.availability !== 'Todos' ? (lastFilters.availability === 'Disponível' ? 'true' : 'false') : undefined,
-        ano: lastFilters.publicationYear !== 'Todos' ? lastFilters.publicationYear : undefined,
-      };
-      Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
-      const results = await CatalogService.searchBooks(params, token);
+      let results = [];
+      if (!isSearchTriggered || !searchQuery) {
+        // Busca todos os livros do banco
+        const response = await CatalogService.getBooks();
+        results = response.data || response;
+      } else {
+        // Busca com filtros
+        const params = {
+          q: searchQuery,
+          tipo: lastFilters.materialType !== 'Todos' ? lastFilters.materialType : undefined,
+          categoria: lastFilters.category !== 'Todas' ? lastFilters.category : undefined,
+          disponivel: lastFilters.availability !== 'Todos' ? (lastFilters.availability === 'Disponível' ? 'true' : 'false') : undefined,
+          ano: lastFilters.publicationYear !== 'Todos' ? lastFilters.publicationYear : undefined,
+        };
+        Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+        results = await CatalogService.searchBooks(params, token);
+      }
       setSearchResults(results);
     } catch (err) {
       setError('Erro ao realizar busca. Verifique a conexão com o servidor.');
@@ -55,7 +60,9 @@ export default function ResultList({
     if (!Array.isArray(searchResults)) return [];
     return searchResults.map(item => ({
       ...item,
-      id: item.id || item._id
+      id: item.id || item._id,
+      // Fallback para disponibilidade se não vier do backend
+      _isDisponivel: item.disponivel !== undefined ? item.disponivel : (item.exemplares > 0)
     }));
   }, [searchResults]);
 
@@ -76,27 +83,19 @@ export default function ResultList({
 
   return (
     <div className="p-4">
-      <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-lg font-medium">
-          Resultados da Pesquisa
-          {searchQuery && isSearchTriggered && (
-            <span className="text-sm font-normal ml-2 text-gray-600">
-              para "{searchQuery}"
-            </span>
-          )}
-        </h2>
+      <div className="flex justify-between items-center mb-4">
         <div className="flex gap-2">
-          <button 
-            className={`p-1 ${viewMode === 'lista' ? 'bg-gray-200' : 'bg-white'} rounded`}
+          <button
+            className={`px-3 py-1 rounded ${viewMode === 'lista' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
             onClick={() => setViewMode('lista')}
           >
-            <List size={18} />
+            <List size={18} className="inline mr-1" /> Lista
           </button>
-          <button 
-            className={`p-1 ${viewMode === 'grade' ? 'bg-gray-200' : 'bg-white'} rounded`}
+          <button
+            className={`px-3 py-1 rounded ${viewMode === 'grade' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
             onClick={() => setViewMode('grade')}
           >
-            <Grid size={18} />
+            <Grid size={18} className="inline mr-1" /> Grade
           </button>
         </div>
       </div>
@@ -133,87 +132,22 @@ export default function ResultList({
             Tente modificar sua pesquisa ou os filtros aplicados
           </p>
         </div>
-      ) : viewMode === 'lista' ? (
-        <div className="bg-white border border-gray-200 rounded-md">
-          {filteredResults.map((item) => (
-            <div 
-              key={item.id} 
-              className="p-3 border-b last:border-b-0 hover:bg-gray-50"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium">{item.titulo}</h3>
-                  <p className="text-sm text-gray-600">{item.autor}, {item.ano}</p>
-                  <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full mt-1">{item.tipo}</span>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`text-sm px-2 py-0.5 rounded ${item.disponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {item.disponivel ? 'Disponível' : 'Indisponível'}
-                  </span>
-                  <button 
-                    className="text-blue-600 text-sm flex items-center gap-1"
-                    onClick={() => setDetailsOpen(detailsOpen === item.id ? null : item.id)}
-                  >
-                    Detalhes <ChevronDown size={14} />
-                  </button>
-                </div>
-              </div>
-              {detailsOpen === item.id && (
-                <div className="mt-2 pt-2 border-t text-sm">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <p><strong>Formato:</strong> {item.tipo}</p>
-                      <p><strong>Edição:</strong> {item.edicao || '1ª edição'}</p>
-                      <p><strong>Idioma:</strong> {item.idioma || 'Português'}</p>
-                    </div>
-                    <div>
-                      <p><strong>ISBN:</strong> {item.isbn || '978-85-XXXXX-XX-X'}</p>
-                      <p><strong>Localização:</strong> {item.localizacao || 'Estante B42'}</p>
-                      <p><strong>Categoria:</strong> {item.categoria || 'Ciências Exatas'}</p>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex justify-end gap-2">
-                    <button 
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
-                      onClick={() => navigateToDetails(item.id)}
-                    >
-                      Ver completo
-                    </button>
-                    {item.disponivel && (
-                      <button 
-                        className="px-3 py-1 bg-green-600 text-white rounded text-sm"
-                        onClick={() => handleReserve(item.id)}
-                      >
-                        Reservar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      ) : viewMode === 'grade' ? (
+        <CatalogGrid books={filteredResults} onBookClick={navigateToDetails} />
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="divide-y">
           {filteredResults.map((item) => (
-            <div 
-              key={item.id} 
-              className="bg-white border border-gray-200 rounded-md p-3 hover:shadow-md cursor-pointer"
+            <div
+              key={item.id}
+              className="p-3 hover:bg-gray-50 cursor-pointer"
               onClick={() => navigateToDetails(item.id)}
             >
-              <div className="flex justify-center mb-2">
-                <div className="bg-gray-200 p-4 rounded">
-                  <BookOpen size={40} className="text-gray-500" />
-                </div>
+              <div className="flex justify-between">
+                <h3 className="font-medium">{item.titulo}</h3>
+                <span className={`text-sm px-2 py-0.5 rounded ${item._isDisponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{item._isDisponivel ? 'Disponível' : 'Indisponível'}</span>
               </div>
-              <h3 className="font-medium text-center mb-1">{item.titulo}</h3>
-              <p className="text-sm text-center text-gray-600">{item.autor}</p>
-              <p className="text-xs text-center text-gray-500">{item.ano} • {item.tipo}</p>
-              <div className="mt-2 flex justify-center">
-                <span className={`text-sm px-2 py-0.5 rounded ${item.disponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {item.disponivel ? 'Disponível' : 'Indisponível'}
-                </span>
-              </div>
+              <p className="text-sm text-gray-600">{item.autor}, {item.ano}</p>
+              <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full mt-1">{item.tipo}</span>
             </div>
           ))}
         </div>

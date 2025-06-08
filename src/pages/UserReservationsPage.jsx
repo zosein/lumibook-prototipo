@@ -17,7 +17,7 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
         const token = localStorage.getItem('authToken');
         const data = await ReservationService.getActiveReservations(user.id, token);
         setReservations(data);
-      } catch {
+      } catch (err) {
         setReservations([]);
       } finally {
         setLoading(false);
@@ -32,7 +32,7 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
       const token = localStorage.getItem('authToken');
       await ReservationService.cancelReservation(reservationId, token);
       setReservations(reservations.filter(r => r.id !== reservationId));
-    } catch {}
+    } catch (err) {}
     setCancelingId(null);
   };
 
@@ -43,7 +43,7 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
       const data = await ReservationService.getReservationHistory(user.id, token);
       setHistory(data);
       setShowHistory(true);
-    } catch {
+    } catch (err) {
       setHistory([]);
       setShowHistory(true);
     } finally {
