@@ -16,17 +16,7 @@ export default function HomeContent({ setCurrentPage, navigateToDetails }) {
       try {
         const token = localStorage.getItem('authToken');
         const books = await CatalogService.getRecentBooks(token);
-        // Buscar detalhes completos de cada livro
-        const detailedBooks = await Promise.all(
-          (Array.isArray(books) ? books : []).map(async (b) => {
-            try {
-              return await CatalogService.getBookById(b.id, token);
-            } catch {
-              return b; // fallback para dados básicos se falhar
-            }
-          })
-        );
-        setRecentBooks(detailedBooks);
+        setRecentBooks(Array.isArray(books) ? books : []);
       } catch (error) {
         setRecentBooks([]);
       } finally {
@@ -120,11 +110,13 @@ export default function HomeContent({ setCurrentPage, navigateToDetails }) {
                     onClick={() => navigateToDetails(item.id)}
                   >
                     <div className="w-28 h-40 bg-gray-200 rounded mb-2 flex items-center justify-center overflow-hidden">
-                      {item.capa ? (
-                        <img src={item.capa} alt={item.titulo} className="object-cover w-full h-full" />
-                      ) : (
-                        <Book size={48} className="text-gray-400" />
-                      )}
+                      <img
+                        src={item.capa || `https://covers.openlibrary.org/b/isbn/${item.isbn}-L.jpg`}
+                        alt={item.titulo}
+                        className="object-cover w-full h-full"
+                        loading="lazy"
+                        onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
+                      />
                     </div>
                     <h3 className="font-medium text-center text-sm mb-1 line-clamp-2">{item.titulo}</h3>
                     <p className="text-xs text-center text-gray-600 mb-1">{item.autor}</p>

@@ -14,8 +14,7 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
     async function fetchReservations() {
       setLoading(true);
       try {
-        const token = localStorage.getItem('authToken');
-        const data = await ReservationService.getActiveReservations(user.id, token);
+        const data = await ReservationService.getActiveReservations(user.id);
         setReservations(data);
       } catch (err) {
         setReservations([]);
@@ -29,8 +28,7 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
   const handleCancelReservation = async (reservationId) => {
     setCancelingId(reservationId);
     try {
-      const token = localStorage.getItem('authToken');
-      await ReservationService.cancelReservation(reservationId, token);
+      await ReservationService.cancelReservation(reservationId);
       setReservations(reservations.filter(r => r.id !== reservationId));
     } catch (err) {}
     setCancelingId(null);
@@ -39,8 +37,7 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
   const fetchReservationHistory = async () => {
     setLoadingHistory(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const data = await ReservationService.getReservationHistory(user.id, token);
+      const data = await ReservationService.getReservationHistory(user.id);
       setHistory(data);
       setShowHistory(true);
     } catch (err) {

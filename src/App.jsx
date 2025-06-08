@@ -103,12 +103,10 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     const userData = localStorage.getItem('userData');
-    if (token && !isLoggedIn) {
-      if (userData) {
-        setUser(JSON.parse(userData));
-        setIsLoggedIn(true);
-      }
-      // Opcional: atualizar dados do usuário com a API, mas sem deslogar imediatamente
+    if (token && userData) {
+      setIsLoggedIn(true);
+      setUser(JSON.parse(userData));
+      // Atualiza dados do usuário com a API (opcional, mas recomendado)
       getProfile(token)
         .then((userDataApi) => {
           setIsLoggedIn(true);
@@ -116,19 +114,24 @@ export default function App() {
           localStorage.setItem('userData', JSON.stringify(userDataApi));
         })
         .catch(() => {
-          // Só faz logout se o token realmente for inválido
+          // Token inválido ou expirado: faz logout
           setIsLoggedIn(false);
           setUser(null);
           localStorage.removeItem('authToken');
           localStorage.removeItem('userData');
+          // Opcional: mostrar toast de sessão expirada
         });
+    } else {
+      setIsLoggedIn(false);
+      setUser(null);
     }
-  }, [isLoggedIn]);
+  }, []);
 
   // Salvar usuário no localStorage ao logar
   const handleLogin = useCallback((userData) => {
     setIsLoggedIn(true);
     setUser(userData);
+    localStorage.setItem('authToken', userData.token); // <-- Garante que o token é salvo
     localStorage.setItem('userData', JSON.stringify(userData));
     if (userData.papel === 'admin') {
       navigate('/admin-perfil');

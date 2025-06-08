@@ -11,19 +11,26 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
 
   useEffect(() => {
     const fetchBookDetails = async () => {
-      if (!bookId) {
-        setError('ID do livro não fornecido');
-        setLoading(false);
-        return;
-      }
+      setLoading(true);
+      setError(null);
       try {
-        const token = localStorage.getItem('authToken');
-        const bookData = await CatalogService.getBookById(bookId, token);
+        const bookData = await CatalogService.getBookById(bookId);
         setLivro(bookData);
-        const relatedBooks = await CatalogService.getRelatedBooks(bookId, token);
-        setObrasRelacionadas(Array.isArray(relatedBooks) ? relatedBooks : []);
+        // Só busca relacionados se o livro existe
+        try {
+          const relatedBooks = await CatalogService.getRelatedBooks(bookId);
+          setObrasRelacionadas(Array.isArray(relatedBooks) ? relatedBooks : []);
+        } catch (relatedErr) {
+          setObrasRelacionadas([]);
+        }
       } catch (err) {
-        setError(err.message);
+        if (err.response && err.response.status === 404) {
+          setError('Livro não encontrado. Ele pode ter sido removido do acervo.');
+        } else {
+          setError('Erro ao carregar livro.');
+        }
+        setLivro(null);
+        setObrasRelacionadas([]);
       } finally {
         setLoading(false);
       }
@@ -35,7 +42,7 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
     try {
       const token = localStorage.getItem('authToken');
       const user = JSON.parse(localStorage.getItem('userData'));
-      await ReservationService.createReservation({ livroId: livro.id, usuarioId: user.id }, token);
+      await ReservationService.createReservation({ userId: user.id, bookId: livro.id }, token);
       alert('Reserva realizada com sucesso!');
     } catch (err) {
       alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
@@ -83,11 +90,12 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-1/4 flex justify-center">
             <div className="w-40 h-56 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
-              {livro.capa ? (
-                <img src={livro.capa} alt={livro.titulo} className="object-cover w-full h-full" />
-              ) : (
-                <BookOpen size={80} className="text-gray-500" />
-              )}
+              <img
+                src={livro.capa || `https://covers.openlibrary.org/b/isbn/${livro.isbn}-L.jpg`}
+                alt={livro.titulo}
+                className="object-cover w-full h-full"
+                onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
+              />
             </div>
           </div>
           <div className="md:w-3/4">
@@ -156,9 +164,9 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
       <div className="mt-6">
         <h2 className="text-lg font-medium mb-2">Obras relacionadas</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {obrasRelacionadas.map((item) => (
+          {obrasRelacionadas.map((item, idx) => (
             <div 
-              key={item.id} 
+              key={item.id || item._id || `relacionado-${idx}`} 
               className="bg-white border border-gray-200 rounded-md p-3 hover:shadow-md cursor-pointer"
               onClick={() => navigateToDetails(item.id)}
             >

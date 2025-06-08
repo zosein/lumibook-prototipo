@@ -2,7 +2,7 @@
 import api from "./api";
 
 export const getUserActivities = async (userId, token, limit = 10) => {
-	const res = await api.get(`/usuarios/${userId}/atividades?limit=${limit}`, {
+	const res = await api.get(`/users/${userId}/activities?limit=${limit}`, {
 		headers: { Authorization: `Bearer ${token}` },
 	});
 	return res.data;

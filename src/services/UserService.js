@@ -1,11 +1,11 @@
 import api from "./api";
+import { normalizeUser } from '../utils/normalizeUtils';
 
 // Autenticação
 export const login = async (email, password) => {
-	const res = await api.post("/usuarios/login", { email, password });
+	const payload = { email, password };
+	const res = await api.post("/users/login", payload);
 	const result = res.data;
-	if (result.success && result.data.token)
-		localStorage.setItem("authToken", result.data.token);
 	if (result.success) {
 		return result.data;
 	} else {
@@ -22,7 +22,12 @@ export const getAuthToken = () => localStorage.getItem("authToken");
 
 // Usuário CRUD
 export const register = async (dados) => {
-	const res = await api.post("/usuarios/register", dados);
+	const payload = { ...dados };
+	if (payload.senha) {
+		payload.password = payload.senha;
+		delete payload.senha;
+	}
+	const res = await api.post("/users/register", payload);
 	const result = res.data;
 	if (result.success) {
 		return result.data;
@@ -31,39 +36,28 @@ export const register = async (dados) => {
 	}
 };
 
-export const getUserById = async (id, token) => {
-	const res = await api.get(`/usuarios/${id}`, {
-		headers: { Authorization: `Bearer ${token}` },
-	});
+export const getUserById = async (id) => {
+	const res = await api.get(`/users/${id}`);
+	return normalizeUser(res.data);
+};
+
+export const updateUser = async (id, dados) => {
+	const res = await api.patch(`/users/${id}`, dados);
 	return res.data;
 };
 
-export const updateUser = async (id, dados, token) => {
-	const res = await api.patch(`/usuarios/${id}`, dados, {
-		headers: { Authorization: `Bearer ${token}` },
-	});
+export const deleteUser = async (id) => {
+	const res = await api.delete(`/users/${id}`);
 	return res.data;
 };
 
-export const deleteUser = async (id, token) => {
-	const res = await api.delete(`/usuarios/${id}`, {
-		headers: { Authorization: `Bearer ${token}` },
-	});
-	return res.data;
-};
-
-export const getUserProfile = async (id, userType = "aluno", token) => {
-	const res = await api.get(`/usuarios/${id}`, {
-		headers: { Authorization: `Bearer ${token}` },
-	});
-	return res.data;
+export const getUserProfile = async (id, userType = "student") => {
+	const res = await api.get(`/users/${id}`);
+	return normalizeUser(res.data);
 };
 
 export const getSystemActivities = async () => {
-	const token = getAuthToken();
-	const res = await api.get("/auditoria/logs", {
-		headers: { Authorization: `Bearer ${token}` },
-	});
+	const res = await api.get("/auditoria/logs");
 	return res.data;
 };
 
@@ -87,9 +81,7 @@ export const exportFrontReqResLog = () => {
 	URL.revokeObjectURL(url);
 };
 
-export const getAllUsers = async (token) => {
-	const res = await api.get("/usuarios", {
-		headers: { Authorization: `Bearer ${token}` },
-	});
-	return res.data;
+export const getAllUsers = async () => {
+	const res = await api.get("/users");
+	return Array.isArray(res.data) ? res.data.map(normalizeUser) : [];
 };

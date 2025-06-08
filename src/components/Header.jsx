@@ -83,10 +83,11 @@ export default function Header({ setCurrentPage, isLoggedIn, user, onLogout }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate">{displayName}</h3>
-                    <div className="flex items-center gap-1 mt-1">
-                      {displayIcon}
-                      <p className="text-sm text-gray-600 truncate">{displayEmail}</p>
-                    </div>
+                    {user.matricula && (
+                      <div className="flex items-center gap-1 mt-1 text-xs text-green-700">
+                        <Hash size={14} /> Matrícula: {user.matricula}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1 mt-2">
                       <UserCheck size={12} className="text-green-500" />
                       <span className="text-xs text-green-600 font-medium capitalize bg-green-50 px-2 py-0.5 rounded-full">

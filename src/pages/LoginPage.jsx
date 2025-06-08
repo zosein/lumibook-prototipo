@@ -47,52 +47,30 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
   const handleSubmit = async e => {
     e.preventDefault();
     const validationErrors = validateLogin({ login: form.usuario, senha: form.senha });
-    
     if (Object.keys(validationErrors).length) {
       setErrors(validationErrors);
       setSuccess('');
       return;
     }
-    
     setSubmitting(true);
     setErrors({});
     setSuccess('');
-    
     try {
-      // Determinar tipo de usuário baseado no input (RESTRITIVO)
-      const tipoInfo = validators.determinarTipoUsuarioLogin(form.usuario);
-      
-      if (!tipoInfo) {
-        setErrors({ geral: "Apenas emails institucionais são aceitos para professores. Alunos devem usar matrícula." });
-        return;
-      }
-        // Preparar dados para API com tipo de usuário determinístico
-      const dadosAPI = {
-        identificador: tipoInfo.identificadorAPI,
-        tipoInput: tipoInfo.tipoInput,
-        tipoUsuarioEsperado: tipoInfo.tipoUsuario,
-        senha: form.senha
-      };
-      
-      console.log('Dados para API de login:', dadosAPI);
-      
-      // Realizar login através da API usando UserService
-      const userData = await UserService.login(tipoInfo.identificadorAPI, form.senha);
-      
-      if (inputInfo?.tipoUsuario === 'admin' && (!userData || userData.papel !== 'admin')) {
-        setErrors({ geral: 'Acesso restrito: apenas administradores autorizados podem acessar esta área.' });
+      // Só permite login por email
+      if (!form.usuario.includes('@')) {
+        setErrors({ geral: 'O login deve ser feito com email institucional.' });
         setSubmitting(false);
         return;
       }
-      
+      const userData = await UserService.login(form.usuario, form.senha);
+      // Salvar token se vier na resposta
+      if (userData.token) {
+        localStorage.setItem('authToken', userData.token);
+      }
       setSuccess("Login realizado! Redirecionando...");
       setTimeout(() => onLogin(userData), 1200);
-      
     } catch (error) {
-      let msg = getApiErrorMessage(error);
-      if (msg.match(/duplicate key|E11000|stack|index|collection|Mongo/gi)) {
-        msg = 'Erro ao fazer login. Tente novamente.';
-      }
+      let msg = error?.message || 'Erro ao fazer login. Tente novamente.';
       setErrors({ geral: msg });
     } finally {
       setSubmitting(false);

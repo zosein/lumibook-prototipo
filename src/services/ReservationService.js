@@ -1,4 +1,5 @@
 import api from "./api";
+import { normalizeReservation } from '../utils/normalizeUtils';
 
 // Serviço responsável por operações de reserva de livros
 const ReservationService = {
@@ -54,37 +55,25 @@ export const cancelReservation = async (reservaId, token) => {
   }
 };
 
-export const getActiveReservations = async (userId, token) => {
+export const getActiveReservations = async (userId) => {
   const res = await api.get(`/reservations`, {
-    params: { userId },
-    headers: { Authorization: `Bearer ${token}` },
+    params: { userId }
   });
   const result = res.data;
   if (result.success) {
-    return (result.data || []).map(r => ({
-      livroId: r.livroId || null,
-      exemplarId: r.exemplarId || null,
-      dataReserva: r.dataReserva || '',
-      ...r
-    }));
+    return (result.data || []).map(normalizeReservation);
   } else {
     throw new Error(result.error || 'Erro ao buscar reservas ativas');
   }
 };
 
-export const getReservationHistory = async (userId, token) => {
+export const getReservationHistory = async (userId) => {
   const res = await api.get(`/reservations/historico`, {
-    params: { userId },
-    headers: { Authorization: `Bearer ${token}` },
+    params: { userId }
   });
   const result = res.data;
   if (result.success) {
-    return (result.data || []).map(r => ({
-      livroId: r.livroId || null,
-      exemplarId: r.exemplarId || null,
-      dataReserva: r.dataReserva || '',
-      ...r
-    }));
+    return (result.data || []).map(normalizeReservation);
   } else {
     throw new Error(result.error || 'Erro ao buscar histórico de reservas');
   }

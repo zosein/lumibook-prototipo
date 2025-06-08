@@ -37,7 +37,7 @@ function useUserStats(user, isLoggedIn) {
 			setLoading(true);
 			setError(null);
 			try {
-				const statsData = await StatsService.getUserStats(user, false);
+				const statsData = await StatsService.getUserStats(user.id, false);
 				if (!statsData || typeof statsData !== 'object' || !('livrosDisponiveis' in statsData)) {
 					setError('Não foi possível carregar as estatísticas.');
 					setStats(null);
@@ -151,8 +151,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 		async function fetchReservations() {
 			setLoadingReservations(true);
 			try {
-				const token = localStorage.getItem('authToken');
-				const data = await ReservationService.getActiveReservations(user.id, token);
+				const data = await ReservationService.getActiveReservations(user.id);
 				setReservations(data);
 			} catch (err) {
 				setReservations([]);
@@ -190,8 +189,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 	const handleCancelReservation = async (reservationId) => {
 		setCancelingId(reservationId);
 		try {
-			const token = localStorage.getItem('authToken');
-			await ReservationService.cancelReservation(reservationId, token);
+			await ReservationService.cancelReservation(reservationId);
 			toast.success('Reserva cancelada!');
 			setReservations(reservations.filter(r => r.id !== reservationId));
 		} catch (err) {
@@ -204,8 +202,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 	const fetchReservationHistory = async () => {
 		setLoadingReservationHistory(true);
 		try {
-			const token = localStorage.getItem('authToken');
-			const data = await ReservationService.getReservationHistory(user.id, token);
+			const data = await ReservationService.getReservationHistory(user.id);
 			setReservationHistory(data);
 			setShowReservationHistory(true);
 		} catch (err) {
@@ -219,8 +216,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 	const handlePayFine = async (fineId) => {
 		setPayingId(fineId);
 		try {
-			const token = localStorage.getItem('authToken');
-			await FineService.payFine(fineId, token);
+			await FineService.payFine(fineId);
 			toast.success('Multa paga!');
 			setFines(fines.filter(f => f.id !== fineId));
 		} catch (err) {
@@ -233,8 +229,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 	const fetchFineHistory = async () => {
 		setLoadingFineHistory(true);
 		try {
-			const token = localStorage.getItem('authToken');
-			const data = await FineService.getFineHistory(user.id, token);
+			const data = await FineService.getFineHistory(user.id);
 			setFineHistory(data);
 			setShowFineHistory(true);
 		} catch {
@@ -480,7 +475,7 @@ function ProfileInfo({ user, profile }) {
 				{user.matricula && <InfoCard label="Matrícula" value={user.matricula} />}
 				<InfoCard label="Tipo de usuário" value={user.papel === "professor" ? "Professor" : "Estudante"} valueColor={user.papel === "professor" ? "text-purple-600 font-medium" : "text-blue-600 font-medium"} />
 				<InfoCard label="Status da conta" value={profile?.statusConta ? profile.statusConta : <Loader2 className="animate-spin inline w-4 h-4 text-gray-400" />} valueColor="text-green-600 font-medium" />
-				<InfoCard label="Membro desde" value={profile?.membroDesde ? profile.membroDesde : <Loader2 className="animate-spin inline w-4 h-4 text-gray-400" />} />
+				<InfoCard label="Membro desde" value={profile?.membroDesde ? profile.membroDesde : "Desconhecido"} />
 			</div>
 		</div>
 	);

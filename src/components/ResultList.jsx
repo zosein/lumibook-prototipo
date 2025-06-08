@@ -74,7 +74,7 @@ export default function ResultList({
     try {
       const token = localStorage.getItem('authToken');
       const user = JSON.parse(localStorage.getItem('userData'));
-      await ReservationService.createReservation({ livroId: bookId, usuarioId: user.id }, token);
+      await ReservationService.createReservation({ userId: user.id, bookId }, token);
       alert('Reserva realizada com sucesso!');
     } catch (err) {
       alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
@@ -142,12 +142,25 @@ export default function ResultList({
               className="p-3 hover:bg-gray-50 cursor-pointer"
               onClick={() => navigateToDetails(item.id)}
             >
-              <div className="flex justify-between">
-                <h3 className="font-medium">{item.titulo}</h3>
-                <span className={`text-sm px-2 py-0.5 rounded ${item._isDisponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{item._isDisponivel ? 'Disponível' : 'Indisponível'}</span>
+              <div className="flex gap-4 items-center">
+                <div className="w-16 h-24 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
+                  <img
+                    src={item.capa || `https://covers.openlibrary.org/b/isbn/${item.isbn}-L.jpg`}
+                    alt={item.titulo}
+                    className="object-cover w-full h-full"
+                    loading="lazy"
+                    onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between">
+                    <h3 className="font-medium">{item.titulo}</h3>
+                    <span className={`text-sm px-2 py-0.5 rounded ${item._isDisponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{item._isDisponivel ? 'Disponível' : 'Indisponível'}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{item.autor}, {item.ano}</p>
+                  <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full mt-1">{item.tipo}</span>
+                </div>
               </div>
-              <p className="text-sm text-gray-600">{item.autor}, {item.ano}</p>
-              <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full mt-1">{item.tipo}</span>
             </div>
           ))}
         </div>

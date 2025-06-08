@@ -102,7 +102,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
 				email: form.email || undefined,
 				telefone: form.telefone,
 				papel: papelSeguro,
-				password: form.senha,
+				senha: form.senha,
 				matricula: papelSeguro === "aluno" ? form.matricula : undefined,
 			});
 			if (resposta.success === false || resposta.message) {

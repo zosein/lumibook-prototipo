@@ -1,6 +1,7 @@
 // Serviço para comunicação com API de catalogação
 
 import api from "./api";
+import { normalizeBook } from '../utils/normalizeUtils';
 
 // Serviço responsável por operações do catálogo de livros
 const CatalogService = {
@@ -24,9 +25,11 @@ const CatalogService = {
 	async catalogarObra(dadosObra, adminId) {
 		try {
 			const response = await api.post(
-				"/admin/obras/catalogar",
+				"/books",
 				{
 					...dadosObra,
+					titulo: dadosObra.titulo,
+					autores: dadosObra.autores,
 					adminId,
 					dataCatalogacao: new Date().toISOString(),
 					status: "ativo",
@@ -69,12 +72,10 @@ const CatalogService = {
 			errors.titulo = "Título não pode exceder 255 caracteres";
 		}
 
-		if (!dados.autor?.trim()) {
-			errors.autor = "Autor é obrigatório";
-		} else if (dados.autor.trim().length < 2) {
-			errors.autor = "Nome do autor deve ter pelo menos 2 caracteres";
-		} else if (dados.autor.trim().length > 100) {
-			errors.autor = "Nome do autor não pode exceder 100 caracteres";
+		if (!Array.isArray(dados.autores) || dados.autores.length === 0) {
+			errors.autores = "Pelo menos um autor é obrigatório";
+		} else if (dados.autores.some(a => typeof a !== 'string' || a.trim().length < 2)) {
+			errors.autores = "Cada autor deve ser uma string com pelo menos 2 caracteres";
 		}
 
 		if (!dados.tipo) {
@@ -135,7 +136,7 @@ const CatalogService = {
 	// Buscar tipos de obra da API
 	async getTiposObra() {
 		try {
-			const response = await api.get("/obras/tipos", {
+			const response = await api.get("/works/types", {
 				headers: this.getHeaders(false),
 			});
 			return response.data;
@@ -149,7 +150,7 @@ const CatalogService = {
 	// Buscar categorias da API
 	async getCategorias() {
 		try {
-			const response = await api.get("/obras/categorias", {
+			const response = await api.get("/works/categories", {
 				headers: this.getHeaders(false),
 			});
 			return response.data;
@@ -164,7 +165,7 @@ const CatalogService = {
 	async getEditoras(termo = "") {
 		try {
 			const response = await api.get(
-				`/editoras/buscar?q=${encodeURIComponent(termo)}`,
+				`/publishers/search?q=${encodeURIComponent(termo)}`,
 				{
 					headers: this.getHeaders(false),
 				}
@@ -181,7 +182,7 @@ const CatalogService = {
 			const params = new URLSearchParams();
 			if (isbn) params.append("isbn", isbn);
 			if (titulo) params.append("titulo", titulo);
-			const response = await api.get(`/obras/verificar-duplicata?${params}`, {
+			const response = await api.get(`/works/check-duplicate?${params}`, {
 				headers: this.getHeaders(),
 			});
 			return response.data;
@@ -206,44 +207,33 @@ const CatalogService = {
 	},
 
 	// Buscar detalhes de um livro
-	async getBookById(bookId, token) {
-		const res = await api.get(`/books/${bookId}`, {
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		return res.data;
+	async getBookById(bookId) {
+		const response = await api.get(`/books/${bookId}`);
+		return normalizeBook(response.data);
 	},
 
 	// Buscar livros relacionados
-	async getRelatedBooks(bookId, token) {
-		const res = await api.get(`/books/relacionados/${bookId}?limit=4`, {
-			headers: { Authorization: `Bearer ${token}` },
-		});
+	async getRelatedBooks(bookId) {
+		const res = await api.get(`/books/relacionados/${bookId}?limit=4`);
 		return res.data;
 	},
 
 	// Buscar livros recentes
-async getRecentBooks(token = null, limit = 3) {
-	const config = token
-		? { headers: { Authorization: `Bearer ${token}` } }
-		: {};
-	const res = await api.get(`/books/recentes?limit=${limit}`, config);
-	return res.data;
-},
-
+	async getRecentBooks(limit = 3) {
+		const res = await api.get(`/books`, { params: { limit } });
+		return Array.isArray(res.data) ? res.data.map(normalizeBook) : [];
+	},
 
 	// Buscar livros (pesquisa)
-	async searchBooks(params, token) {
-		const res = await api.get(`/books/search`, {
-			params,
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		return res.data;
+	async searchBooks(params) {
+		const res = await api.get(`/books`, { params });
+		return Array.isArray(res.data) ? res.data.map(normalizeBook) : [];
 	},
 
 	// Busca todos os livros do catálogo, com filtros opcionais
 	async getBooks({ search, category, available } = {}) {
-		// Parâmetros opcionais: busca por título, categoria e disponibilidade
-		return api.get("/books", { params: { search, category, available } });
+		const response = await api.get('/books', { params: { search, category, available } });
+		return Array.isArray(response.data) ? response.data.map(normalizeBook) : [];
 	},
 
 	// Busca detalhes de um livro específico
@@ -294,6 +284,30 @@ async getRecentBooks(token = null, limit = 3) {
 			res: res.data,
 		});
 		return res;
+	},
+
+	// Métodos para rotas de obras avançadas
+	getObras: async function(params = {}, token) {
+		const res = await api.get("/works", {
+			params,
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		return res.data;
+	},
+
+	catalogarObraAdmin: async function(data, token) {
+		const res = await api.post("/admin/works/catalog", data, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		return res.data;
+	},
+
+	verificarDuplicata: async function(params = {}, token) {
+		const res = await api.get("/works/check-duplicate", {
+			params,
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		return res.data;
 	},
 };
 

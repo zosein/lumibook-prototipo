@@ -6,9 +6,17 @@ import api from "./api";
 // Serviço responsável por operações de estatísticas do sistema
 const StatsService = {
   // Buscar estatísticas do usuário
-  async getUserStats(userId) {
-    // Novo endpoint padronizado
-    return api.get(`/stats/user/${userId}`);
+  async getUserStats(userId, userType = "aluno") {
+    const response = await api.get(`/stats/user/${userId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+    });
+    const raw = response.data && response.data.data ? response.data.data : {};
+    return StatsService.validateStatsData({
+      livrosEmprestados: raw.livrosLidos || 0,
+      reservasAtivas: raw.reservasRealizadas || 0,
+      devolucoesPendentes: raw.atrasos || 0,
+      // Outros campos podem ser adicionados aqui se necessário
+    }, userType);
   },
 
   // Buscar estatísticas gerais do sistema (admin)
@@ -66,26 +74,20 @@ const StatsService = {
     return baseStructure;
   },
 
-  // Atualizar uma estatística específica (para uso em tempo real)
+  // Atualizar uma estatística específica do usuário
   async updateStat(userId, statKey, newValue) {
-    try {
-      const endpoint = `/usuarios/${userId}/estatisticas/${statKey}`;
-      const response = await api.put(
-        endpoint,
-        { value: newValue },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      StatsCache.remove(userId);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao atualizar estatística:', error);
-      throw error;
-    }
+    const response = await api.put(
+      `/stats/user/${userId}/${statKey}`,
+      { value: newValue },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    StatsCache.remove(userId);
+    return response.data;
   },
   // REMOVIDO: Funções de simulação de empréstimo e devolução
   // Agora use as APIs reais:
@@ -96,10 +98,10 @@ const StatsService = {
   async getUserHistory(userId, userType, page = 1, limit = 10) {
     try {
       let endpoint = '';
-      if (userType === 'aluno') {
-        endpoint = `/alunos/${userId}/historico-emprestimos`;
-      } else if (userType === 'professor') {
-        endpoint = `/professores/${userId}/historico-emprestimos`;
+      if (userType === 'aluno' || userType === 'student') {
+        endpoint = `/students/${userId}/loan-history`;
+      } else if (userType === 'professor' || userType === 'teacher') {
+        endpoint = `/teachers/${userId}/loan-history`;
       } else {
         throw new Error('Tipo de usuário inválido para histórico de empréstimos');
       }
@@ -147,6 +149,34 @@ const StatsService = {
       isNearLimit: percentage >= 80,
       isAtLimit: percentage >= 100
     };
+  },
+};
+
+// Compatibilidade com rotas alternativas de estatísticas
+const StatsServiceCompat = {
+  async getUserStats(id, token) {
+    const res = await api.get(`/users/${id}/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  async getStudentStats(id, token) {
+    const res = await api.get(`/students/${id}/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  async getTeacherStats(id, token) {
+    const res = await api.get(`/teachers/${id}/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  async getAdminStats(id, token) {
+    const res = await api.get(`/admin/${id}/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
   },
 };
 
