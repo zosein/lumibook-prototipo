@@ -44,23 +44,14 @@ const useAdminStats = (user, isLoggedIn) => {
 			setError(null);
 
 			try {
-				// Usar StatsService ou endpoint específico para admin
 				const endpoint = `/admin/${user.id}/estatisticas`;
 				const headers = {
 					Authorization: `Bearer ${localStorage.getItem("authToken")}`,
 					"Content-Type": "application/json",
 				};
 
-				console.log(`[API CALL] GET ${endpoint}`, {
-					headers,
-					userId: user.id,
-					userType: "admin",
-				});
-
 				const response = await fetch(
-					`${
-						process.env.REACT_APP_API_URL || "http://localhost:3001"
-					}${endpoint}`,
+					`${process.env.REACT_APP_API_URL || "http://localhost:3001"}${endpoint}`,
 					{
 						method: "GET",
 						headers,

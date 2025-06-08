@@ -2,10 +2,6 @@ import { BookMarked, LockIcon, UserPlus, LogOut, ChevronDown, Mail, Hash, UserCh
 import { useState, useRef, useEffect } from 'react';
 
 export default function Header({ setCurrentPage, isLoggedIn, user, onLogout }) {
-  useEffect(() => {
-    //
-  }, [isLoggedIn, user]);
-
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -46,7 +42,7 @@ export default function Header({ setCurrentPage, isLoggedIn, user, onLogout }) {
   };
 
   if (isLoggedIn && user) {
-    const { displayName, displayEmail, displayIcon } = getDisplayInfo();
+    const { displayName } = getDisplayInfo();
     const initials = getInitials(displayName);
     return (
       <header className="bg-blue-700 text-white p-4 shadow-lg">
