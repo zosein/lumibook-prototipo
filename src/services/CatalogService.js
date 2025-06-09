@@ -150,7 +150,7 @@ const CatalogService = {
 	// Buscar categorias da API
 	async getCategorias() {
 		try {
-			const response = await api.get("/works/categories", {
+			const response = await api.get("/categories", {
 				headers: this.getHeaders(false),
 			});
 			return response.data;
@@ -302,7 +302,7 @@ const CatalogService = {
 		return res.data;
 	},
 
-	verificarDuplicata: async function(params = {}, token) {
+	verificarDuplicataObra: async function(params = {}, token) {
 		const res = await api.get("/works/check-duplicate", {
 			params,
 			headers: { Authorization: `Bearer ${token}` },

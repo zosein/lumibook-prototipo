@@ -2,12 +2,22 @@ import api from "./api";
 import { normalizeUser } from '../utils/normalizeUtils';
 
 // Autenticação
-export const login = async (email, password) => {
-	const payload = { email, password };
+export const login = async (usuario, password) => {
+	let payload;
+	if (usuario.includes('@')) {
+		payload = { email: usuario, password };
+	} else {
+		payload = { matricula: usuario, password };
+	}
 	const res = await api.post("/users/login", payload);
 	const result = res.data;
 	if (result.success) {
-		return result.data;
+		const data = result.data;
+		// Garante que o campo 'token' exista, mesmo que venha como 'accessToken'
+		if (!data.token && data.accessToken) {
+			data.token = data.accessToken;
+		}
+		return data;
 	} else {
 		throw new Error(result.error || "Erro no login");
 	}
@@ -57,7 +67,7 @@ export const getUserProfile = async (id, userType = "student") => {
 };
 
 export const getSystemActivities = async () => {
-	const res = await api.get("/auditoria/logs");
+	const res = await api.get("/audit");
 	return res.data;
 };
 

@@ -89,18 +89,20 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
       <div className="bg-white border border-gray-200 rounded-md p-4">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-1/4 flex justify-center">
-            <div className="w-40 h-56 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
+            <div className="w-56 h-80 bg-gray-200 rounded overflow-hidden p-0 m-0 flex items-center justify-center">
               <img
                 src={livro.capa || `https://covers.openlibrary.org/b/isbn/${livro.isbn}-L.jpg`}
                 alt={livro.titulo}
-                className="object-cover w-full h-full"
+                className="object-contain w-full h-full rounded-none p-0 m-0"
                 onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
               />
             </div>
           </div>
           <div className="md:w-3/4">
             <h1 className="text-xl font-bold mb-1">{livro.titulo}</h1>
-            <p className="text-gray-600 mb-3">{livro.autor}, {livro.ano}</p>
+            <p className="text-gray-600 mb-3">
+              {(livro.autor || (Array.isArray(livro.autores) ? livro.autores[0] : '')) || 'Autor desconhecido'}, {livro.ano}
+            </p>
             <div className="flex gap-2 mb-4">
               <span className={`text-sm px-2 py-0.5 rounded ${livro.disponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                 {livro.disponivel ? 'Disponível' : 'Indisponível'}
@@ -111,40 +113,44 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
             </div>
             <div className="mb-4">
               <h2 className="font-medium mb-2">Resumo</h2>
-              <p className="text-gray-700">{livro.resumo}</p>
+              <p className="text-gray-700">{livro.resumo || 'Resumo não disponível.'}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 mb-6">
               <div>
                 <h3 className="font-medium text-sm text-gray-600">ISBN</h3>
-                <p>{livro.isbn}</p>
+                <p>{livro.isbn || 'Não informado'}</p>
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Edição</h3>
-                <p>{livro.edicao}</p>
+                <p>{livro.edicao || 'Não informado'}</p>
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Editora</h3>
-                <p>{livro.editora}</p>
+                <p>{livro.editora || 'Não informado'}</p>
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Idioma</h3>
-                <p>{livro.idioma}</p>
+                <p>{livro.idioma || 'Não informado'}</p>
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Páginas</h3>
-                <p>{livro.paginas}</p>
+                <p>{livro.paginas || 'Não informado'}</p>
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Categoria</h3>
-                <p>{livro.categoria}</p>
+                <p>{livro.categoria || 'Não informado'}</p>
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Localização</h3>
-                <p>{livro.localizacao}</p>
+                <p>{livro.localizacao || 'Não informado'}</p>
               </div>
               <div>
                 <h3 className="font-medium text-sm text-gray-600">Exemplares</h3>
-                <p>{livro.exemplares?.disponiveis ?? 0} disponíveis ({livro.exemplares?.total ?? 0} total)</p>
+                {(Number(livro.exemplares?.disponiveis) === 0 && Number(livro.exemplares?.total) === 0) ? (
+                  <p>Nenhum exemplar disponível</p>
+                ) : (
+                  <p>{livro.exemplares?.disponiveis ?? 0} disponível{Number(livro.exemplares?.disponiveis) !== 1 ? 's' : ''} ({livro.exemplares?.total ?? 0} total)</p>
+                )}
               </div>
             </div>
             <div className="flex gap-2">

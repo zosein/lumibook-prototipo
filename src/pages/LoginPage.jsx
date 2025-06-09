@@ -56,9 +56,10 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
     setErrors({});
     setSuccess('');
     try {
-      // Só permite login por email
-      if (!form.usuario.includes('@')) {
-        setErrors({ geral: 'O login deve ser feito com email institucional.' });
+      // Permitir login por matrícula (aluno) ou email institucional (professor/admin)
+      const tipoInfo = validators.determinarTipoUsuarioLogin(form.usuario.trim());
+      if (!tipoInfo) {
+        setErrors({ geral: 'Informe uma matrícula válida (aluno) ou email institucional (professor).' });
         setSubmitting(false);
         return;
       }

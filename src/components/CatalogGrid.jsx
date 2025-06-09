@@ -16,11 +16,12 @@ export default function CatalogGrid({ books = [], loading = false, onBookClick }
           onClick={() => onBookClick(item.id)}
         >
           <div className="w-28 h-40 bg-gray-200 rounded mb-2 flex items-center justify-center overflow-hidden">
-            {item.capa ? (
-              <img src={item.capa} alt={item.titulo} className="object-cover w-full h-full" />
-            ) : (
-              <Book size={48} className="text-gray-400" />
-            )}
+            <img
+              src={item.capa || `https://covers.openlibrary.org/b/isbn/${item.isbn}-L.jpg`}
+              alt={item.titulo}
+              className="object-cover w-full h-full"
+              onError={e => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
+            />
           </div>
           <h3 className="font-medium text-center text-xs mb-1 line-clamp-2">{item.titulo}</h3>
           <p className="text-xs text-center text-gray-600 mb-1 line-clamp-1">{item.autor}</p>

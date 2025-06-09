@@ -42,7 +42,7 @@ const useAdminStats = (user, isLoggedIn) => {
 			setError(null);
 
 			try {
-				const endpoint = `/admin/${user.id}/estatisticas`;
+				const endpoint = `/stats/user/${user.id}`;
 				const headers = {
 					Authorization: `Bearer ${localStorage.getItem("authToken")}`,
 					"Content-Type": "application/json",
@@ -98,6 +98,11 @@ function getProfileTheme(papel) {
 				frase: 'Bem-vindo ao seu espaço de aprendizado!',
 			};
 	}
+}
+
+// Função utilitária para limpar ISBN
+function limparIsbn(isbn) {
+	return isbn ? isbn.replace(/[-\s]/g, '') : '';
 }
 
 export default function AdminProfile({
@@ -350,10 +355,9 @@ function DashboardSection({
 		const loadActivities = async () => {
 			try {
 				const systemActivities = await getSystemActivities();
-				setActivities(systemActivities);
+				setActivities(Array.isArray(systemActivities) ? systemActivities : []);
 			} catch (error) {
 				console.error("Erro ao carregar atividades:", error);
-				// Fallback para dados offline se necessário
 				setActivities([]);
 			} finally {
 				setActivitiesLoading(false);
@@ -505,11 +509,41 @@ function CatalogacaoSection({ adminId }) {
 		preencherPorISBN,
 		submitForm,
 		limparFormulario,
+		capaUrl,
 	} = useCatalogacao(adminId);
 
 	// Estados locais para UI
 	const [showSugestoes, setShowSugestoes] = useState(false);
 	const [isbnTimer, setIsbnTimer] = useState(null);
+	const [showSugestoesCategoria, setShowSugestoesCategoria] = useState(false);
+	const [showSugestoesLocalizacao, setShowSugestoesLocalizacao] = useState(false);
+	const localizacoesPadrao = [
+		"Estante A, Prateleira 1",
+		"Estante A, Prateleira 2",
+		"Estante A, Prateleira 3",
+		"Estante B, Prateleira 1",
+		"Estante B, Prateleira 2",
+		"Estante B, Prateleira 3",
+		"Estante C, Prateleira 1",
+		"Estante C, Prateleira 2",
+		"Estante C, Prateleira 3",
+		"Estante D, Prateleira 1",
+		"Estante D, Prateleira 2",
+		"Estante D, Prateleira 3",
+		"Sala de Leitura",
+		"Sala de Estudos",
+		"Acervo Infantil",
+		"Acervo Geral",
+		"Depósito",
+		"Recepção",
+		"Mesa de Consulta",
+		"Arquivo Morto",
+		"Sala dos Professores",
+		"Auditório",
+		"Corredor Central",
+		"Prateleira Especial",
+		"Estante de Referência"
+	];
 
 	// Debounce para busca de ISBN
 	const handleISBNChange = (value) => {
@@ -534,6 +568,7 @@ function CatalogacaoSection({ adminId }) {
 	// Submissão do formulário
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+		console.log('Formulário de catalogação: submit disparado');
 		const token = localStorage.getItem('authToken');
 		const resultado = await submitForm(token);
 
@@ -589,9 +624,7 @@ function CatalogacaoSection({ adminId }) {
 						<h2 className="text-2xl font-bold text-gray-900">
 							Catalogar Nova Obra
 						</h2>
-						<p className="text-gray-600">
-							Adicione novas obras ao acervo da biblioteca
-						</p>
+						<p className="text-gray-600">Adicione novas obras ao acervo da biblioteca</p>
 					</div>
 				</div>
 			</div>
@@ -622,347 +655,412 @@ function CatalogacaoSection({ adminId }) {
 				</div>
 			)}
 
-			{/* Formulário principal */}
-			<div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-				<form onSubmit={handleSubmit} className="p-6 space-y-6">
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						{/* Título */}
-						<div className="lg:col-span-2">
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Título da Obra <span className="text-red-500">*</span>
-							</label>
-							<input
-								type="text"
-								value={formData.titulo}
-								onChange={(e) => updateField("titulo", e.target.value)}
-								onBlur={() =>
-									verificarDuplicata(formData.isbn, formData.titulo)
-								}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.titulo
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="Digite o título completo da obra"
-							/>
-							{errors.titulo && (
-								<p className="text-red-500 text-sm mt-1">{errors.titulo}</p>
-							)}
-						</div>
-
-						{/* Autor */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Autor <span className="text-red-500">*</span>
-							</label>
-							<input
-								type="text"
-								value={formData.autor}
-								onChange={(e) => updateField("autor", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.autor
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="Nome completo do autor"
-							/>
-							{errors.autor && (
-								<p className="text-red-500 text-sm mt-1">{errors.autor}</p>
-							)}
-						</div>
-
-						{/* ISBN com busca automática */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								ISBN
-								{verificandoDuplicata && (
-									<span className="ml-2 text-blue-600 text-xs">
-										Verificando...
-									</span>
-								)}
-							</label>
-							<input
-								type="text"
-								value={formData.isbn}
-								onChange={(e) => handleISBNChange(e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.isbn
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="978-XX-XXXX-XXX-X"
-							/>
-							{errors.isbn && (
-								<p className="text-red-500 text-sm mt-1">{errors.isbn}</p>
-							)}
-							<p className="text-xs text-gray-500 mt-1">
-								Dados serão preenchidos automaticamente se o ISBN for encontrado
-							</p>
-						</div>
-
-						{/* Tipo de Obra */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Tipo de Obra <span className="text-red-500">*</span>
-							</label>
-							<select
-								value={formData.tipo}
-								onChange={(e) => updateField("tipo", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.tipo
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-							>
-								<option value="">Selecione o tipo</option>
-								{Array.isArray(tiposObra) && tiposObra.map((tipo) => (
-									<option key={tipo} value={tipo}>
-										{tipo}
-									</option>
-								))}
-							</select>
-							{errors.tipo && (
-								<p className="text-red-500 text-sm mt-1">{errors.tipo}</p>
-							)}
-						</div>
-
-						{/* Categoria */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Categoria <span className="text-red-500">*</span>
-							</label>
-							<select
-								value={formData.categoria}
-								onChange={(e) => updateField("categoria", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.categoria
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-							>
-								<option value="">Selecione a categoria</option>
-								{Array.isArray(categorias) && categorias.map((categoria) => (
-									<option key={categoria} value={categoria}>
-										{categoria}
-									</option>
-								))}
-							</select>
-							{errors.categoria && (
-								<p className="text-red-500 text-sm mt-1">{errors.categoria}</p>
-							)}
-						</div>
-
-						{/* Ano de Publicação */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Ano de Publicação <span className="text-red-500">*</span>
-							</label>
-							<input
-								type="number"
-								min="1450"
-								max={new Date().getFullYear() + 1}
-								value={formData.ano}
-								onChange={(e) => updateField("ano", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.ano
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder={new Date().getFullYear()}
-							/>
-							{errors.ano && (
-								<p className="text-red-500 text-sm mt-1">{errors.ano}</p>
-							)}
-						</div>
-
-						{/* Editora com autocomplete */}
-						<div className="relative">
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Editora
-							</label>
-							<input
-								type="text"
-								value={formData.editora}
-								onChange={(e) => {
-									updateField("editora", e.target.value);
-									buscarEditoras(e.target.value);
-									setShowSugestoes(true);
-								}}
-								onFocus={() => setShowSugestoes(true)}
-								onBlur={() => setTimeout(() => setShowSugestoes(false), 200)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.editora
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="Nome da editora"
-							/>
-
-							{/* Sugestões de editoras */}
-							{showSugestoes && sugestaoEditoras.length > 0 && (
-								<div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-									{sugestaoEditoras.map((editora, index) => (
-										<button
-											key={index}
-											type="button"
-											onClick={() => {
-												updateField("editora", editora);
-												setShowSugestoes(false);
-											}}
-											className="w-full px-4 py-2 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
-										>
-											{editora}
-										</button>
-									))}
+			{/* Layout do formulário + capa */}
+			<div className="flex flex-col lg:flex-row gap-8 items-start">
+				<div className="flex-1 w-full">
+					{/* Formulário principal */}
+					<div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+						<form onSubmit={handleSubmit} className="p-6 space-y-6">
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								{/* Título */}
+								<div className="lg:col-span-2">
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Título da Obra <span className="text-red-500">*</span>
+									</label>
+									<input
+										type="text"
+										value={formData.titulo}
+										onChange={(e) => updateField("titulo", e.target.value)}
+										onBlur={() =>
+											verificarDuplicata(formData.isbn, formData.titulo)
+										}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.titulo
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="Digite o título completo da obra"
+									/>
+									{errors.titulo && (
+										<p className="text-red-500 text-sm mt-1">{errors.titulo}</p>
+									)}
 								</div>
-							)}
-							{errors.editora && (
-								<p className="text-red-500 text-sm mt-1">{errors.editora}</p>
-							)}
-						</div>
 
-						{/* Idioma */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Idioma
-							</label>
-							<select
-								value={formData.idioma}
-								onChange={(e) => updateField("idioma", e.target.value)}
-								className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200"
-							>
-								<option value="Português">Português</option>
-								<option value="Inglês">Inglês</option>
-								<option value="Espanhol">Espanhol</option>
-								<option value="Francês">Francês</option>
-								<option value="Alemão">Alemão</option>
-								<option value="Italiano">Italiano</option>
-								<option value="Outro">Outro</option>
-							</select>
-						</div>
+								{/* Autor */}
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Autor <span className="text-red-500">*</span>
+									</label>
+									<input
+										type="text"
+										value={formData.autor}
+										onChange={(e) => updateField("autor", e.target.value)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.autor
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="Nome completo do autor"
+									/>
+									{errors.autor && (
+										<p className="text-red-500 text-sm mt-1">{errors.autor}</p>
+									)}
+								</div>
 
-						{/* Número de Páginas */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Número de Páginas
-							</label>
-							<input
-								type="number"
-								min="1"
-								value={formData.paginas}
-								onChange={(e) => updateField("paginas", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.paginas
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="Ex: 350"
-							/>
-							{errors.paginas && (
-								<p className="text-red-500 text-sm mt-1">{errors.paginas}</p>
-							)}
-						</div>
+								{/* ISBN com busca automática */}
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										ISBN
+										{verificandoDuplicata && (
+											<span className="ml-2 text-blue-600 text-xs">
+												Verificando...
+											</span>
+										)}
+									</label>
+									<input
+										type="text"
+										value={formData.isbn}
+										onChange={(e) => handleISBNChange(e.target.value)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.isbn
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="978-XX-XXXX-XXX-X"
+									/>
+									{errors.isbn && (
+										<p className="text-red-500 text-sm mt-1">{errors.isbn}</p>
+									)}
+									<p className="text-xs text-gray-500 mt-1">
+										Dados serão preenchidos automaticamente se o ISBN for encontrado
+									</p>
+								</div>
 
-						{/* Localização */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Localização <span className="text-red-500">*</span>
-							</label>
-							<input
-								type="text"
-								value={formData.localizacao}
-								onChange={(e) => updateField("localizacao", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.localizacao
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="Ex: Estante A25, Prateleira 2"
-							/>
-							{errors.localizacao && (
-								<p className="text-red-500 text-sm mt-1">
-									{errors.localizacao}
-								</p>
-							)}
-						</div>
+								{/* Tipo de Obra */}
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Tipo de Obra <span className="text-red-500">*</span>
+									</label>
+									<select
+										value={formData.tipo}
+										onChange={(e) => updateField("tipo", e.target.value)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.tipo
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+									>
+										<option value="">Selecione o tipo</option>
+										{Array.isArray(tiposObra) && tiposObra.map((tipo) => (
+											<option key={tipo} value={tipo}>
+												{tipo}
+											</option>
+										))}
+									</select>
+									{errors.tipo && (
+										<p className="text-red-500 text-sm mt-1">{errors.tipo}</p>
+									)}
+								</div>
 
-						{/* Quantidade de Exemplares */}
-						<div>
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Quantidade de Exemplares <span className="text-red-500">*</span>
-							</label>
-							<input
-								type="number"
-								min="1"
-								value={formData.exemplares}
-								onChange={(e) => updateField("exemplares", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
-									errors.exemplares
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="1"
-							/>
-							{errors.exemplares && (
-								<p className="text-red-500 text-sm mt-1">{errors.exemplares}</p>
-							)}
-						</div>
+								{/* Categoria */}
+								<div className="relative">
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Categoria <span className="text-red-500">*</span>
+									</label>
+									<input
+										type="text"
+										value={formData.categoria}
+										onChange={e => {
+											updateField("categoria", e.target.value);
+										}}
+										onFocus={() => setShowSugestoesCategoria(true)}
+										onBlur={() => setTimeout(() => setShowSugestoesCategoria(false), 200)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.categoria
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="Digite ou selecione a categoria"
+										autoComplete="off"
+									/>
+									{/* Sugestões de categorias */}
+									{showSugestoesCategoria && Array.isArray(categorias) && categorias.length > 0 && (
+										<div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+											{(formData.categoria
+												? categorias.filter(cat => cat.toLowerCase().includes(formData.categoria.toLowerCase()))
+												: categorias
+											).slice(0, 20).map((cat, idx) => (
+												<button
+													key={idx}
+													type="button"
+													onClick={() => {
+														updateField("categoria", cat);
+														setShowSugestoesCategoria(false);
+													}}
+													className="w-full px-4 py-2 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+												>
+													{cat}
+												</button>
+											))}
+										</div>
+									)}
+									{errors.categoria && (
+										<p className="text-red-500 text-sm mt-1">{errors.categoria}</p>
+									)}
+								</div>
 
-						{/* Resumo */}
-						<div className="lg:col-span-2">
-							<label className="block text-sm font-semibold text-gray-700 mb-2">
-								Resumo
-								<span className="text-gray-500 text-xs ml-2">
-									({formData.resumo.length}/1000 caracteres)
-								</span>
-							</label>
-							<textarea
-								rows="4"
-								value={formData.resumo}
-								onChange={(e) => updateField("resumo", e.target.value)}
-								className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 resize-none ${
-									errors.resumo
-										? "border-red-300 focus:border-red-500"
-										: "border-gray-200 focus:border-green-500"
-								}`}
-								placeholder="Breve descrição da obra, suas contribuições e contexto..."
-							/>
-							{errors.resumo && (
-								<p className="text-red-500 text-sm mt-1">{errors.resumo}</p>
-							)}
-						</div>
+								{/* Ano de Publicação */}
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Ano de Publicação <span className="text-red-500">*</span>
+									</label>
+									<input
+										type="number"
+										min="1450"
+										max={new Date().getFullYear() + 1}
+										value={formData.ano}
+										onChange={(e) => updateField("ano", e.target.value)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.ano
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder={new Date().getFullYear()}
+									/>
+									{errors.ano && (
+										<p className="text-red-500 text-sm mt-1">{errors.ano}</p>
+									)}
+								</div>
+
+								{/* Editora com autocomplete */}
+								<div className="relative">
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Editora
+									</label>
+									<input
+										type="text"
+										value={formData.editora}
+										onChange={(e) => {
+											updateField("editora", e.target.value);
+											buscarEditoras(e.target.value);
+											setShowSugestoes(true);
+										}}
+										onFocus={() => setShowSugestoes(true)}
+										onBlur={() => setTimeout(() => setShowSugestoes(false), 200)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.editora
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="Nome da editora"
+									/>
+
+									{/* Sugestões de editoras */}
+									{showSugestoes && sugestaoEditoras.length > 0 && (
+										<div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+											{sugestaoEditoras.map((editora, index) => (
+												<button
+													key={index}
+													type="button"
+													onClick={() => {
+														updateField("editora", editora);
+														setShowSugestoes(false);
+													}}
+													className="w-full px-4 py-2 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+												>
+													{editora}
+												</button>
+											))}
+										</div>
+									)}
+									{errors.editora && (
+										<p className="text-red-500 text-sm mt-1">{errors.editora}</p>
+									)}
+								</div>
+
+								{/* Idioma */}
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Idioma
+									</label>
+									<select
+										value={formData.idioma}
+										onChange={(e) => updateField("idioma", e.target.value)}
+										className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200"
+									>
+										<option value="Português">Português</option>
+										<option value="Inglês">Inglês</option>
+										<option value="Espanhol">Espanhol</option>
+										<option value="Francês">Francês</option>
+										<option value="Alemão">Alemão</option>
+										<option value="Italiano">Italiano</option>
+										<option value="Outro">Outro</option>
+									</select>
+								</div>
+
+								{/* Número de Páginas */}
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Número de Páginas
+									</label>
+									<input
+										type="number"
+										min="1"
+										value={formData.paginas}
+										onChange={(e) => updateField("paginas", e.target.value)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.paginas
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="Ex: 350"
+									/>
+									{errors.paginas && (
+										<p className="text-red-500 text-sm mt-1">{errors.paginas}</p>
+									)}
+								</div>
+
+								{/* Localização com autocomplete */}
+								<div className="relative">
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Localização <span className="text-red-500">*</span>
+									</label>
+									<input
+										type="text"
+										value={formData.localizacao}
+										onChange={e => updateField("localizacao", e.target.value)}
+										onFocus={() => setShowSugestoesLocalizacao(true)}
+										onBlur={() => setTimeout(() => setShowSugestoesLocalizacao(false), 200)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.localizacao
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="Ex: Estante A, Prateleira 2"
+										autoComplete="off"
+									/>
+									{/* Sugestões de localizações */}
+									{showSugestoesLocalizacao && localizacoesPadrao.length > 0 && (
+										<div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+											{(formData.localizacao
+												? localizacoesPadrao.filter(loc => loc.toLowerCase().includes(formData.localizacao.toLowerCase()))
+												: localizacoesPadrao
+											).slice(0, 30).map((loc, idx) => (
+												<button
+													key={idx}
+													type="button"
+													onClick={() => {
+														updateField("localizacao", loc);
+														setShowSugestoesLocalizacao(false);
+													}}
+													className="w-full px-4 py-2 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+												>
+													{loc}
+												</button>
+											))}
+										</div>
+									)}
+									{errors.localizacao && (
+										<p className="text-red-500 text-sm mt-1">{errors.localizacao}</p>
+									)}
+								</div>
+
+								{/* Quantidade de Exemplares */}
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Quantidade de Exemplares <span className="text-red-500">*</span>
+									</label>
+									<input
+										type="number"
+										min="1"
+										value={formData.exemplares}
+										onChange={(e) => updateField("exemplares", e.target.value)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 ${
+											errors.exemplares
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="1"
+									/>
+									{errors.exemplares && (
+										<p className="text-red-500 text-sm mt-1">{errors.exemplares}</p>
+									)}
+								</div>
+
+								{/* Resumo */}
+								<div className="lg:col-span-2">
+									<label className="block text-sm font-semibold text-gray-700 mb-2">
+										Resumo
+										<span className="text-gray-500 text-xs ml-2">
+											({formData.resumo.length}/1000 caracteres)
+										</span>
+									</label>
+									<textarea
+										rows="4"
+										value={formData.resumo}
+										onChange={(e) => updateField("resumo", e.target.value)}
+										className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-100 focus:outline-none transition-all duration-200 resize-none ${
+											errors.resumo
+												? "border-red-300 focus:border-red-500"
+												: "border-gray-200 focus:border-green-500"
+										}`}
+										placeholder="Breve descrição da obra, suas contribuições e contexto..."
+									/>
+									{errors.resumo && (
+										<p className="text-red-500 text-sm mt-1">{errors.resumo}</p>
+									)}
+								</div>
+							</div>
+
+							{/* Botões de ação */}
+							<div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
+								<button
+									type="submit"
+									disabled={submitting}
+									className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+								>
+									{submitting ? (
+										<>
+											<div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+											Catalogando...
+										</>
+									) : (
+										<>
+											<Plus size={18} />
+											Catalogar Obra
+										</>
+									)}
+								</button>
+
+								<button
+									type="button"
+									onClick={limparFormulario}
+									disabled={submitting}
+									className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-xl hover:from-gray-700 hover:to-gray-800 disabled:from-gray-400 disabled:to-gray-500 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+								>
+									Limpar Formulário
+								</button>
+							</div>
+						</form>
 					</div>
-
-					{/* Botões de ação */}
-					<div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
-						<button
-							type="submit"
-							disabled={submitting}
-							className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
-						>
-							{submitting ? (
-								<>
-									<div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-									Catalogando...
-								</>
-							) : (
-								<>
-									<Plus size={18} />
-									Catalogar Obra
-								</>
-							)}
-						</button>
-
-						<button
-							type="button"
-							onClick={limparFormulario}
-							disabled={submitting}
-							className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-xl hover:from-gray-700 hover:to-gray-800 disabled:from-gray-400 disabled:to-gray-500 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
-						>
-							Limpar Formulário
-						</button>
+				</div>
+				{(capaUrl || formData.isbn) && (
+					<div className="flex-shrink-0 mt-6 lg:mt-0">
+						<img
+							src={
+								capaUrl ||
+								(formData.isbn
+									? `https://covers.openlibrary.org/b/isbn/${limparIsbn(formData.isbn)}-L.jpg`
+									: undefined)
+							}
+							alt="Capa do livro"
+							className="w-48 h-auto rounded-lg shadow-lg border"
+							style={{ maxHeight: 300 }}
+							onError={e => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
+						/>
+						<p className="text-center text-xs text-gray-500 mt-2">Capa do livro</p>
 					</div>
-				</form>
+				)}
 			</div>
 		</div>
 	);

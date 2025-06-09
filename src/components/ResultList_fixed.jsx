@@ -212,8 +212,13 @@ export default function ResultList({
               onClick={() => navigateToDetails(item.id)}
             >
               <div className="flex justify-center mb-2">
-                <div className="bg-gray-200 p-4 rounded">
-                  <BookOpen size={40} className="text-gray-500" />
+                <div className="bg-gray-200 p-4 rounded w-28 h-40 flex items-center justify-center overflow-hidden">
+                  <img
+                    src={item.capa || `https://covers.openlibrary.org/b/isbn/${item.isbn}-L.jpg`}
+                    alt={item.titulo}
+                    className="object-cover w-full h-full"
+                    onError={e => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
+                  />
                 </div>
               </div>
               <h3 className="font-medium text-center mb-1">{item.titulo}</h3>

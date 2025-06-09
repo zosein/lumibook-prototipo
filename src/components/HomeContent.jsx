@@ -42,8 +42,20 @@ export default function HomeContent({ setCurrentPage, navigateToDetails }) {
     try {
       const token = localStorage.getItem('authToken');
       const params = { tipo: categoriaParaMaterialType[categoria] };
-      const books = await CatalogService.searchBooks(params, token);
-      setCatalogBooks(Array.isArray(books) ? books : []);
+      let books = await CatalogService.searchBooks(params, token);
+      books = Array.isArray(books) ? books : [];
+
+      // Filtro extra por tipo de material
+      const tipoEsperado = categoriaParaMaterialType[categoria];
+      books = books.filter(book => {
+        if (tipoEsperado === 'Livro') {
+          // Excluir E-book, Tese, Periódico
+          return book.tipo === 'Livro';
+        }
+        return book.tipo === tipoEsperado;
+      });
+
+      setCatalogBooks(books);
     } catch (error) {
       setCatalogBooks([]);
     } finally {

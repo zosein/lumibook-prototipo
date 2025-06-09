@@ -8,7 +8,7 @@ const VALIDATION_RULES = {
   
   // NOVO: Email específico para admin
   ADMIN_EMAIL: {
-    PATTERN: /^admin@universitas\.edu\.br$/,
+    PATTERN: /^admin@(universitas\.edu\.br|instituicao\.edu)$/,
     DOMAIN: '@universitas.edu.br'
   },
 
@@ -212,33 +212,71 @@ export const ERROR_MESSAGES = {
 export function validateRegister(form) {
   const errors = {};
   const allowedRoles = ['aluno', 'professor'];
-  if (!allowedRoles.includes(form.papel)) {
+
+  // Papel
+  if (!form.papel) {
+    errors.papel = 'Selecione o tipo de usuário (Aluno ou Professor).';
+  } else if (!allowedRoles.includes(form.papel)) {
     errors.papel = 'Tipo de usuário inválido.';
   }
-  if (!form.nome || form.nome.length < 3) {
-    errors.nome = 'Nome deve ter pelo menos 3 caracteres';
+
+  // Nome
+  if (!form.nome || form.nome.trim().length === 0) {
+    errors.nome = 'O nome é obrigatório.';
+  } else if (form.nome.length < 3) {
+    errors.nome = 'O nome deve ter pelo menos 3 caracteres.';
+  } else if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(form.nome)) {
+    errors.nome = 'O nome deve conter apenas letras e espaços.';
   }
-  if (form.papel === 'professor') {
-    // Professores devem usar email institucional
-    if (!form.email || (!form.email.endsWith('@universitas.edu.br') && !form.email.endsWith('@instituicao.edu')) ) {
-      errors.email = 'Email institucional obrigatório para professores';
+
+  // Email obrigatório para todos
+  if (!form.email || form.email.trim().length === 0) {
+    errors.email = 'O email é obrigatório.';
+  } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(form.email)) {
+    errors.email = 'O email informado não é válido.';
+  } else if (form.papel === 'professor') {
+    if (!form.email.endsWith('@universitas.edu.br') && !form.email.endsWith('@instituicao.edu')) {
+      errors.email = 'Professores devem usar email institucional (@universitas.edu.br ou @instituicao.edu).';
+    }
+  } else if (form.papel === 'aluno') {
+    if (form.email.endsWith('@universitas.edu.br') || form.email.endsWith('@instituicao.edu')) {
+      errors.email = 'Alunos não podem usar email institucional. Use um email pessoal.';
     }
   }
+
+  // Matrícula
   if (form.papel === 'aluno') {
-    // Matrícula obrigatória para alunos
-    if (!form.matricula || form.matricula.length < 7) {
-      errors.matricula = 'Matrícula obrigatória (mín. 7 números)';
+    if (!form.matricula || form.matricula.trim().length === 0) {
+      errors.matricula = 'A matrícula é obrigatória para alunos.';
+    } else if (!/^\d{7,}$/.test(form.matricula)) {
+      errors.matricula = 'A matrícula deve conter pelo menos 7 dígitos numéricos.';
     }
   }
-  if (!form.telefone || form.telefone.length < 10) {
-    errors.telefone = 'Telefone inválido';
+
+  // Telefone
+  if (!form.telefone || form.telefone.trim().length === 0) {
+    errors.telefone = 'O telefone é obrigatório.';
+  } else if (form.telefone.replace(/\D/g, '').length < 10) {
+    errors.telefone = 'O telefone deve ter pelo menos 10 dígitos.';
   }
-  if (!form.senha || form.senha.length < 8) {
-    errors.senha = 'Senha deve ter pelo menos 8 caracteres';
+
+  // Senha
+  if (!form.senha) {
+    errors.senha = 'A senha é obrigatória.';
+  } else {
+    const detalhesSenha = validators.getDetalhesErroSenha(form.senha);
+    if (detalhesSenha.length > 0) {
+      errors.senha = detalhesSenha.join(' | ');
+    }
   }
-  if (form.senha !== form.confirmarSenha) {
-    errors.confirmarSenha = 'As senhas não coincidem';
+
+  // Confirmação de senha
+  if (!form.confirmarSenha) {
+    errors.confirmarSenha = 'Confirme a senha.';
+  } else if (form.senha !== form.confirmarSenha) {
+    errors.confirmarSenha = 'As senhas não coincidem.';
   }
+
   return errors;
 }
 
@@ -293,4 +331,5 @@ export const debugValidation = (input, expectedType) => {
   console.log('========================');
   return result;
 };
+
 

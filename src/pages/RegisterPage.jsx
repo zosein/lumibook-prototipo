@@ -62,32 +62,6 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
 		e.preventDefault();
 		let papelSeguro = allowedRoles.includes(form.papel) ? form.papel : "aluno";
 		const validationErrors = validateRegister({ ...form, papel: papelSeguro });
-		// Validações específicas por papel
-		if (papelSeguro === "professor") {
-			if (!form.email) {
-				validationErrors.email =
-					"Email institucional obrigatório para professores";
-			} else if (
-				!form.email.endsWith("@universitas.edu.br") &&
-				!form.email.endsWith("@instituicao.edu")
-			) {
-				validationErrors.email =
-					"Professores devem usar email institucional (@universitas.edu.br ou @instituicao.edu)";
-			}
-		}
-		if (papelSeguro === "aluno") {
-			if (!form.matricula) {
-				validationErrors.matricula = "Matrícula obrigatória para alunos";
-			}
-			if (
-				form.email &&
-				!form.email.endsWith("@universitas.edu.br") &&
-				!form.email.endsWith("@instituicao.edu")
-			) {
-				validationErrors.email =
-					"Se preencher, o email deve ser institucional (@universitas.edu.br ou @instituicao.edu)";
-			}
-		}
 		if (Object.keys(validationErrors).length) {
 			setErrors(validationErrors);
 			setSuccess("");
@@ -99,13 +73,13 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
 			// Chama a API de cadastro
 			const resposta = await UserService.register({
 				name: form.nome,
-				email: form.email || undefined,
+				email: form.email || "",
 				telefone: form.telefone,
 				papel: papelSeguro,
 				senha: form.senha,
 				matricula: papelSeguro === "aluno" ? form.matricula : undefined,
 			});
-			if (resposta.success === false || resposta.message) {
+			if (resposta.success === false) {
 				let msg =
 					resposta.message || "Erro ao cadastrar. Tente novamente mais tarde.";
 				if (msg.includes("duplicate key") && msg.includes("email")) {
