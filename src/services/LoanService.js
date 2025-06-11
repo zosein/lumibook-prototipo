@@ -1,16 +1,10 @@
 import api from "./api";
 
 export const createLoan = async (dados, token) => {
-  const res = await api.post("/emprestimos", dados, {
+  const res = await api.post("/api/loans", dados, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return {
-    bookId: res.data.bookId || res.data.livroId || null,
-    itens: res.data.itens || [],
-    dataEmprestimo: res.data.dataEmprestimo || '',
-    dataPrevistaDevolucao: res.data.dataPrevistaDevolucao || '',
-    ...res.data
-  };
+  return res.data;
 };
 
 export const returnLoan = async (emprestimoId, token) => {
@@ -21,32 +15,20 @@ export const returnLoan = async (emprestimoId, token) => {
 };
 
 export const getActiveLoans = async (token) => {
-  const res = await api.get(`/emprestimos`, {
+  const res = await api.get(`/api/loans/ativos`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return (res.data || []).map(e => ({
-    bookId: e.bookId || e.livroId || null,
-    itens: e.itens || [],
-    dataEmprestimo: e.dataEmprestimo || '',
-    dataPrevistaDevolucao: e.dataPrevistaDevolucao || '',
-    ...e
-  }));
+  return res.data;
 };
 
-export const getLoanHistory = async (userId, userType, token) => {
-  if (userType === 'aluno' || userType === 'student') {
-    const res = await api.get(`/students/${userId}/loan-history`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  } else if (userType === 'professor' || userType === 'teacher') {
-    const res = await api.get(`/teachers/${userId}/loan-history`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  } else {
-    return [];
-  }
+export const getLoanById = async (id) => {
+  const res = await api.get(`/api/loans/${id}`);
+  return res.data;
+};
+
+export const getLoanHistory = async () => {
+  const res = await api.get(`/api/reservations/history`);
+  return res.data;
 };
 
 export const cancelLoan = async (emprestimoId, token) => {

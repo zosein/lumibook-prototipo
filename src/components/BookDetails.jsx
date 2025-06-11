@@ -42,8 +42,11 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
     try {
       const token = localStorage.getItem('authToken');
       const user = JSON.parse(localStorage.getItem('userData'));
-      await ReservationService.createReservation({ userId: user.id, bookId: livro.id }, token);
+      await ReservationService.createReservation({ usuarioId: user.id, livroId: livro.id }, token);
       alert('Reserva realizada com sucesso!');
+      if (typeof setCurrentPage === 'function') {
+        setCurrentPage('perfil');
+      }
     } catch (err) {
       alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
     }

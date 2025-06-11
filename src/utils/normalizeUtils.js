@@ -22,18 +22,29 @@ export function normalizeUser(user) {
 		id: user.id || user._id || user.usuarioId,
 		nome: user.nome || user.name || user.usuario,
 		email: user.email,
-		papel: user.papel || user.role,
 		matricula: user.matricula,
-		tipoLogin: user.tipoLogin,
-		avatarUrl: user.avatarUrl || user.avatar,
+		papel: user.papel || user.role,
+		avatar: user.avatar,
 		statusConta: user.statusConta || user.status,
-		telefone: user.telefone || user.phone,
+		membroDesde: user.membroDesde,
+		token: user.token,
 	};
 }
 
 // Normaliza um livro para o padrão
 export function normalizeBook(book) {
 	if (!book) return book;
+
+	// Tradução dos tipos conhecidos para português
+	const tipoMap = {
+		'Book': 'Livro',
+		'Thesis': 'Tese',
+		'Periodical': 'Periódico',
+		'E-book': 'E-book',
+		'Livro': 'Livro',
+		'Tese': 'Tese',
+		'Periódico': 'Periódico',
+	};
 
 	// Normalização de exemplares
 	let exemplares = { disponiveis: 0, total: 0 };
@@ -72,7 +83,7 @@ export function normalizeBook(book) {
 		autor: book.autor || (Array.isArray(book.authors) ? book.authors[0] : ''),
 		isbn: book.isbn,
 		ano: book.ano,
-		tipo: book.tipo,
+		tipo: tipoMap[book.tipo] || book.tipo,
 		categoria: book.categoria,
 		editora: book.editora,
 		exemplares,
@@ -94,10 +105,9 @@ export function normalizeReservation(res) {
 	if (!res) return res;
 	return {
 		id: res.id || res._id,
-		userId: res.userId || res.usuarioId,
-		bookId: res.bookId || res.livroId,
-		status: res.status,
+		tituloLivro: res.tituloLivro,
 		dataReserva: res.dataReserva,
+		status: res.status,
 	};
 }
 
@@ -106,9 +116,7 @@ export function normalizeFine(fine) {
 	if (!fine) return fine;
 	return {
 		id: fine.id || fine._id,
-		userId: fine.userId || fine.usuarioId,
 		valor: fine.valor,
-		descricao: fine.descricao,
-		status: fine.status,
+		motivo: fine.motivo,
 	};
 }

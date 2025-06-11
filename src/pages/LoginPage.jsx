@@ -44,35 +44,21 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
     setErrors(prev => ({ ...prev, ...validationErrors }));
   };
 
-  const handleSubmit = async e => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const validationErrors = validateLogin({ login: form.usuario, senha: form.senha });
-    if (Object.keys(validationErrors).length) {
-      setErrors(validationErrors);
-      setSuccess('');
-      return;
-    }
     setSubmitting(true);
     setErrors({});
     setSuccess('');
     try {
-      // Permitir login por matrícula (aluno) ou email institucional (professor/admin)
-      const tipoInfo = validators.determinarTipoUsuarioLogin(form.usuario.trim());
-      if (!tipoInfo) {
-        setErrors({ geral: 'Informe uma matrícula válida (aluno) ou email institucional (professor).' });
-        setSubmitting(false);
-        return;
+      const result = await UserService.login(form.usuario, form.senha);
+      if (result && result.token) {
+        onLogin(result);
+        setSuccess('Login realizado com sucesso!');
+      } else {
+        setErrors({ geral: 'Usuário ou senha inválidos.' });
       }
-      const userData = await UserService.login(form.usuario, form.senha);
-      // Salvar token se vier na resposta
-      if (userData.token) {
-        localStorage.setItem('authToken', userData.token);
-      }
-      setSuccess("Login realizado! Redirecionando...");
-      setTimeout(() => onLogin(userData), 1200);
-    } catch (error) {
-      let msg = error?.message || 'Erro ao fazer login. Tente novamente.';
-      setErrors({ geral: msg });
+    } catch (err) {
+      setErrors({ geral: err.message || 'Erro ao fazer login.' });
     } finally {
       setSubmitting(false);
     }
@@ -110,7 +96,7 @@ export default function LoginPage({ setCurrentPage, onLogin }) {
             </div>
 
             {/* Formulário */}
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleLogin} className="p-8 space-y-6">
               {/* Mensagens de feedback */}
               {errors.geral && (
                 <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-center text-sm animate-pulse flex items-center gap-2">

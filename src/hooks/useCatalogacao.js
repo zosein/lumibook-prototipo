@@ -196,7 +196,7 @@ export const useCatalogacao = (adminId) => {
 		} finally {
 			setSubmitting(false);
 		}
-	}, [formData, adminId, validarFormulario]);
+	}, [formData, adminId, validarFormulario, errors]);
 
 	const limparFormulario = useCallback(() => {
 		setFormData({

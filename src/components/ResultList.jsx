@@ -20,7 +20,6 @@ export default function ResultList({
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('authToken');
       let results = [];
       if (!isSearchTriggered || !searchQuery) {
         // Busca todos os livros do banco
@@ -36,7 +35,7 @@ export default function ResultList({
           ano: lastFilters.publicationYear !== 'Todos' ? lastFilters.publicationYear : undefined,
         };
         Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
-        results = await CatalogService.searchBooks(params, token);
+        results = await CatalogService.searchBooks(params);
       }
       setSearchResults(results);
     } catch (err) {
@@ -122,10 +121,10 @@ export default function ResultList({
           {filteredResults.map((item) => (
             <div
               key={item.id}
-              className="p-3 hover:bg-gray-50 cursor-pointer"
+              className="p-3 bg-white border border-blue-100 rounded-xl shadow-sm hover:shadow-md hover:bg-blue-50 cursor-pointer transition-all duration-200 mb-2 flex items-center"
               onClick={() => navigateToDetails(item.id)}
             >
-              <div className="flex gap-4 items-center">
+              <div className="flex gap-4 items-center w-full">
                 <div className="w-16 h-24 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
                   <img
                     src={item.capa || `https://covers.openlibrary.org/b/isbn/${item.isbn}-L.jpg`}
@@ -137,11 +136,11 @@ export default function ResultList({
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between">
-                    <h3 className="font-medium">{item.titulo}</h3>
+                    <h3 className="font-medium text-blue-900">{item.titulo}</h3>
                     <span className={`text-sm px-2 py-0.5 rounded ${item._isDisponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{item._isDisponivel ? 'Disponível' : 'Indisponível'}</span>
                   </div>
                   <p className="text-sm text-gray-600">{item.autor}, {item.ano}</p>
-                  <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full mt-1">{item.tipo}</span>
+                  <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full mt-1">{item.tipo}</span>
                 </div>
               </div>
             </div>

@@ -1,36 +1,25 @@
 import api from "./api";
 
-export const searchAuthors = async (q, token) => {
-  const res = await api.get(`/authors/search`, {
-    params: { q },
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
+const AuthorService = {
+  async searchAuthors(query) {
+    const res = await api.get(`/api/authors/search?query=${encodeURIComponent(query)}`);
+    return res.data;
+  },
+
+  async createAuthor(nome) {
+    const res = await api.post(`/api/authors`, { nome });
+    return res.data;
+  },
+
+  async getAuthorById(id) {
+    const res = await api.get(`/api/authors/${id}`);
+    return res.data;
+  },
+
+  async getAllAuthors() {
+    const res = await api.get(`/api/authors`);
+    return res.data;
+  },
 };
 
-export const createAuthor = async (dados, token) => {
-  // Mapeamento para compatibilidade com a API
-  const dadosAPI = {
-    name: dados.nome,
-    biography: dados.bio || '',
-    nationality: dados.nacionalidade || dados.nascimento || ''
-  };
-  const res = await api.post(`/authors`, dadosAPI, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
-};
-
-export const updateAuthor = async (id, dados, token) => {
-  const res = await api.patch(`/authors/${id}`, dados, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
-};
-
-export const deleteAuthor = async (id, token) => {
-  const res = await api.delete(`/authors/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
-}; 
+export default AuthorService; 

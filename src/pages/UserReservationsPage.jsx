@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, ArrowLeft } from 'lucide-react';
 import * as ReservationService from '../services/ReservationService';
+import { retirarReserva } from '../services/ReservationService';
+import { toast } from 'react-toastify';
 
 export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn }) {
   const [reservations, setReservations] = useState([]);
@@ -9,6 +11,7 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [cancelingId, setCancelingId] = useState(null);
+  const [retirandoId, setRetirandoId] = useState(null);
 
   useEffect(() => {
     async function fetchReservations() {
@@ -32,6 +35,23 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
       setReservations(reservations.filter(r => r.id !== reservationId));
     } catch (err) {}
     setCancelingId(null);
+  };
+
+  const handleRetirarReserva = async (reservationId) => {
+    setRetirandoId(reservationId);
+    try {
+      await retirarReserva(reservationId);
+      const data = await ReservationService.getActiveReservations(user.id);
+      setReservations(data);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('atualizar-estatisticas'));
+      }
+      toast.success('Livro retirado com sucesso!');
+    } catch (err) {
+      toast.error('Erro ao retirar livro: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setRetirandoId(null);
+    }
   };
 
   const fetchReservationHistory = async () => {
@@ -72,6 +92,9 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
                   <div>
                     <span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva})</span>
                   </div>
+                  <button className="px-3 py-1 bg-green-600 text-white rounded text-sm mr-2" onClick={() => handleRetirarReserva(res.id)} disabled={retirandoId === res.id}>
+                    {retirandoId === res.id ? 'Retirando...' : 'Retirar'}
+                  </button>
                   <button className="px-3 py-1 bg-red-600 text-white rounded text-sm" onClick={() => handleCancelReservation(res.id)} disabled={cancelingId === res.id}>
                     {cancelingId === res.id ? 'Cancelando...' : 'Cancelar'}
                   </button>

@@ -1,7 +1,9 @@
 import StudentProfile from "../components/StudentProfile";
 import UserReservationsPage from "./UserReservationsPage";
+import LoanPage from './LoanPage';
 
-export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn, showReservationsOnly }) {
+export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn, showReservationsOnly, currentPage }) {
+  console.log('StudentProfilePage', { currentPage, isLoggedIn, user });
   // Proteção de rota: só renderiza se estiver logado
   if (!isLoggedIn || !user) {
     console.warn('Acesso não autorizado ao perfil - redirecionando para login');
@@ -16,14 +18,18 @@ export default function StudentProfilePage({ setCurrentPage, user, isLoggedIn, s
     );
   }
 
-  if (showReservationsOnly) {
+  if (currentPage === 'reservas') {
     return <UserReservationsPage setCurrentPage={setCurrentPage} user={user} isLoggedIn={isLoggedIn} />;
+  }
+
+  if (currentPage === 'emprestimos') {
+    return <LoanPage setCurrentPage={setCurrentPage} />;
   }
 
   // Formatar dados do usuário para o componente StudentProfile
   const userData = {
     name: user.nome || user.usuario || "USUÁRIO",
-    avatar: user.avatar || null, // Avatar será buscado dinamicamente pela API via UserService
+    avatar: user.avatar || null,
     email: user.email,
     papel: user.papel,
     matricula: user.tipoLogin === 'matricula' ? user.usuario : null,

@@ -1,4 +1,4 @@
-import { Home, Search, Clock, User, Shield } from 'lucide-react';
+import { Home, Search, BookOpen, User, Shield } from 'lucide-react';
 
 export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn, user }) {
   // Define os itens de navegação de acordo com o tipo de usuário
@@ -16,11 +16,12 @@ export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn,
       ];
     } else {
       // Usuário comum
-      return [
-        ...baseItems,
-        { id: 'reservas', icon: Clock, label: 'Reservas' },
-        { id: 'perfil', icon: User, label: 'Perfil' }
-      ];
+      const nav = [...baseItems];
+      if (isLoggedIn) {
+        nav.push({ id: 'emprestimos', icon: BookOpen, label: 'Empréstimos' });
+      }
+      nav.push({ id: 'perfil', icon: User, label: 'Perfil' });
+      return nav;
     }
   };
 
@@ -43,9 +44,14 @@ export default function NavigationBar({ currentPage, setCurrentPage, isLoggedIn,
       setCurrentPage('login');
       return;
     }
-    // Acesso direto para reservas
-    if (id === 'reservas') {
-      setCurrentPage('reservas');
+    // Acesso direto para empréstimos (LoanPage) ao clicar em emprestimos
+    if (id === 'emprestimos') {
+      if (isLoggedIn) {
+        setCurrentPage('emprestimos');
+      } else {
+        localStorage.setItem('redirectAfterLogin', 'emprestimos');
+        setCurrentPage('login');
+      }
       return;
     }
     setCurrentPage(id);

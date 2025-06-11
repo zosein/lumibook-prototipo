@@ -72,6 +72,12 @@ export default function App() {
       case 'login':
         navigate('/login');
         break;
+      case 'emprestimos':
+        navigate('/emprestimos');
+        break;
+      case 'reservas':
+        navigate('/reservas');
+        break;
       default:
         navigate('/');
     }
@@ -225,8 +231,12 @@ export default function App() {
           <Route path="/perfil" element={<StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} />} />
           <Route path="/admin-perfil" element={<AdminProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} onLogout={handleLogout} />} />
           <Route path="/reservas" element={
-            <StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} showReservationsOnly={true} />
+            <StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} currentPage="reservas" />
           } />
+          <Route path="/emprestimos" element={
+            <StudentProfilePage setCurrentPage={handlePageChange} user={user} isLoggedIn={isLoggedIn} currentPage="emprestimos" />
+          } />
+          <Route path="/books/:bookId" element={<DetailsPageWrapper setCurrentPage={handlePageChange} navigateToDetails={navigateToDetails} />} />
         </Routes>
       </div>
       {showHeaderAndComponents && (

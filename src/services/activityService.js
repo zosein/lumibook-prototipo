@@ -14,3 +14,13 @@ export const getSystemActivities = async (token, limit = 10) => {
 	});
 	return res.data;
 };
+
+export const getAdminActivities = async () => {
+	const res = await api.get("/api/admin/activities");
+	return res.data;
+};
+
+export const getAuditLogs = async () => {
+	const res = await api.get("/api/audit/logs");
+	return res.data;
+};

@@ -27,23 +27,12 @@ export default function ResultList({
 
     try {
       // Construir query params para a API
-      const params = new URLSearchParams({
-        q: searchQuery,
-        tipo: lastFilters.materialType !== 'Todos' ? lastFilters.materialType : '',
-        categoria: lastFilters.category !== 'Todas' ? lastFilters.category : '',
-        disponivel: lastFilters.availability !== 'Todos' ? (lastFilters.availability === 'Disponível' ? 'true' : 'false') : '',
-        ano: lastFilters.publicationYear !== 'Todos' ? lastFilters.publicationYear : '',
-      });
-
-      // Remover parâmetros vazios
-      Object.keys(Object.fromEntries(params)).forEach(key => {
-        if (!params.get(key)) {
-          params.delete(key);
-        }
-      });
-
-      // Corrigir endpoint para '/books' (listagem simples) ou '/books/search' (busca avançada)
-      const endpoint = params.toString() ? '/books/search' : '/books';
+      const params = new URLSearchParams();
+      if (searchQuery) {
+        params.set('q', searchQuery);
+      }
+      // Corrigir endpoint para '/api/books' (listagem simples) ou '/api/books/search' (busca avançada)
+      const endpoint = params.toString() ? '/api/books/search' : '/api/books';
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}${endpoint}?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -65,7 +54,7 @@ export default function ResultList({
     } finally {
       setLoading(false);
     }
-  }, [isSearchTriggered, searchQuery, lastFilters]);
+  }, [isSearchTriggered, searchQuery]);
 
   // Atualiza os filtros armazenados apenas quando uma nova busca é disparada
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
 	Book,
 	Home,
@@ -11,6 +11,7 @@ import {
 	Users,
 	Loader2,
 	Menu,
+	Clock,
 } from "lucide-react";
 import StatsService from "../services/StatsService";
 import { getUserById } from "../services/UserService";
@@ -20,9 +21,10 @@ import * as ReservationService from '../services/ReservationService';
 import FineService from '../services/FineService';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import * as LoanService from '../services/LoanService';
 
 // Hook para buscar estatísticas do usuário
-function useUserStats(user, isLoggedIn) {
+function useUserStats(user, isLoggedIn, statsKey = 0) {
 	const [stats, setStats] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
@@ -38,7 +40,7 @@ function useUserStats(user, isLoggedIn) {
 			setError(null);
 			try {
 				const statsData = await StatsService.getUserStats(user.id, false);
-				if (!statsData || typeof statsData !== 'object' || !('livrosDisponiveis' in statsData)) {
+				if (!statsData || typeof statsData !== 'object') {
 					setError('Não foi possível carregar as estatísticas.');
 					setStats(null);
 				} else {
@@ -52,7 +54,7 @@ function useUserStats(user, isLoggedIn) {
 			}
 		}
 		fetchUserStats();
-	}, [user, user?.id, user?.papel, isLoggedIn]);
+	}, [user, user?.id, user?.papel, isLoggedIn, statsKey]);
 	return { stats, loading, error };
 }
 
@@ -119,7 +121,8 @@ function getProfileTheme(papel) {
 
 export default function StudentProfile({ user = { name: "ALUNO", avatar: null, papel: "aluno" }, setCurrentPage, isLoggedIn, showReservations = true }) {
 	const theme = getProfileTheme(user.papel);
-	const { stats, loading, error } = useUserStats(user, isLoggedIn);
+	const [statsKey, setStatsKey] = useState(0);
+	const { stats, loading, error } = useUserStats(user, isLoggedIn, statsKey);
 	const { profile } = useUserProfile(user, isLoggedIn);
 
 	// Estado do menu mobile
@@ -138,6 +141,10 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 	const [fineHistory, setFineHistory] = useState([]);
 	const [loadingFineHistory, setLoadingFineHistory] = useState(false);
 	const [showFineHistory, setShowFineHistory] = useState(false);
+
+	// Estados para empréstimos
+	const [loans, setLoans] = useState([]);
+	const [loadingLoans, setLoadingLoans] = useState(true);
 
 	// Segurança: redireciona se não estiver logado
 	useEffect(() => {
@@ -178,10 +185,31 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 		fetchFines();
 	}, [user.id]);
 
+	// Buscar empréstimos ativos para sincronizar estatísticas
+	useEffect(() => {
+		async function fetchLoans() {
+			setLoadingLoans(true);
+			try {
+				const data = await LoanService.getActiveLoans(localStorage.getItem('authToken'));
+				setLoans(Array.isArray(data) ? data : []);
+			} catch {
+				setLoans([]);
+			} finally {
+				setLoadingLoans(false);
+			}
+		}
+		fetchLoans();
+	}, [user.id, statsKey]);
+
+	useEffect(() => {
+		const atualizar = () => setStatsKey(k => k + 1);
+		window.addEventListener('atualizar-estatisticas', atualizar);
+		return () => window.removeEventListener('atualizar-estatisticas', atualizar);
+	}, []);
 
 	// Handlers auxiliares
 	const handleNavigation = (page) => setCurrentPage(page);
-	const handleRefreshStats = () => window.location.reload();
+	const handleRefreshStats = () => setStatsKey(k => k + 1);
 
 	const [cancelingId, setCancelingId] = useState(null);
 	const [payingId, setPayingId] = useState(null);
@@ -242,16 +270,16 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 
 	// Renderização principal
 	return (
-		<div className="min-h-screen flex flex-col bg-white animate-in fade-in duration-300">
+		<div className="min-h-screen flex flex-col bg-[#f8fafc] animate-in fade-in duration-300">
 			<ToastContainer position="top-right" autoClose={3000} hideProgressBar newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover />
-			<header className={`w-full ${theme.bg} flex items-center justify-between px-8 py-4 shadow-lg rounded-b-2xl`}>
+			<header className={`w-full bg-blue-600 flex items-center justify-between px-8 py-6 shadow-xl rounded-b-3xl`}>
 				<div className="flex items-center gap-4">
 					<button className="sm:hidden flex items-center text-white p-2 mr-2" onClick={() => setMobileMenuOpen(true)} aria-label="Abrir menu">
 						<Menu size={28} />
 					</button>
 					<button
 						onClick={() => handleNavigation("home")}
-						className="hidden sm:flex items-center gap-2 text-white hover:text-blue-200 transition-all duration-200 p-2 rounded-lg hover:bg-blue-500 active:scale-95"
+						className="hidden sm:flex items-center gap-2 text-white hover:text-[#f472b6] transition-all duration-200 p-2 rounded-lg hover:bg-[#2563eb]/70 active:scale-95"
 					>
 						<ArrowLeft size={20} />
 						<span className="hidden sm:inline font-medium">Voltar</span>
@@ -262,7 +290,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 					</span>
 				</div>
 				<div className="flex items-center gap-4">
-					<div className={`w-12 h-12 bg-white rounded-full flex items-center justify-center border-4 ${theme.avatarBorder} shadow-lg`}>
+					<div className="w-14 h-14 bg-white rounded-full flex items-center justify-center border-4 border-[#f472b6] shadow-2xl">
 						{theme.icon}
 					</div>
 					<span className="font-semibold text-lg text-white drop-shadow">{user.name || user.nome}</span>
@@ -270,28 +298,36 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 			</header>
 			<MobileSidebar user={user} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} handleNavigation={(page) => { setMobileMenuOpen(false); handleNavigation(page); }} />
 			<div className="flex flex-1">
-				<aside className={`hidden sm:flex flex-col ${theme.bg} w-72 px-8 py-8 text-white shadow-2xl rounded-r-3xl`}>
+				<aside className="hidden sm:flex flex-col bg-blue-700 w-72 px-8 py-10 text-white shadow-2xl rounded-r-3xl">
 					<div className="flex flex-col items-center mb-10">
-						<div className={`w-20 h-20 bg-white rounded-full flex items-center justify-center border-4 ${theme.avatarBorder} shadow-lg`}>
+						<div className="w-24 h-24 bg-white rounded-full flex items-center justify-center border-4 border-[#f472b6] shadow-xl">
 							{theme.icon}
 						</div>
 						<span className="mt-4 text-lg font-bold">{user.name || user.nome}</span>
-						<span className="text-xs text-blue-200">{user.email}</span>
+						<span className="text-xs text-[#fbbf24]">{user.email}</span>
 					</div>
 					<nav className="flex flex-col gap-2 mt-6">
-						<span className="text-xs mb-1 text-blue-200">BIBLIOTECA</span>
+						<span className="text-xs mb-1 text-[#fbbf24]">BIBLIOTECA</span>
 						<NavItem icon={Home} label="Início" onClick={() => handleNavigation("home")} />
 						<NavItem icon={Search} label="Pesquisar" onClick={() => handleNavigation("resultados")} />
-						<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("reservas")} />
+						<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("emprestimos")} />
+						<NavItem icon={BookOpen} label="Reservas" onClick={() => handleNavigation("reservas")} />
 					</nav>
 				</aside>
-				<main className="flex-1 p-4 sm:p-8 bg-gray-50">
+				<main className="flex-1 p-4 sm:p-10 bg-[#f8fafc]">
 					<div className="max-w-6xl mx-auto">
-						<div className="mb-6">
-							<h1 className="text-3xl font-bold text-gray-900 mb-2">Meu Perfil</h1>
-							<p className="text-gray-600">{theme.frase}</p>
+						<div className="mb-8">
+							<h1 className="text-4xl font-extrabold text-[#1e293b] mb-2">Meu Perfil</h1>
+							<p className="text-[#64748b] text-lg">{theme.frase}</p>
 						</div>
-						<StatsSection stats={stats} loading={loading} error={error} userType={user.papel} onRefresh={handleRefreshStats} />
+						<StatsSection
+							stats={stats}
+							loading={loading || loadingLoans}
+							error={error}
+							userType={user.papel}
+							onRefresh={handleRefreshStats}
+							loans={loans}
+						/>
 						<QuickActions handleNavigation={handleNavigation} />
 						<ProfileInfo user={user} profile={profile} />
 						{showReservations && (
@@ -347,36 +383,77 @@ function InfoCard({ label, value, valueColor = "text-gray-900" }) {
 }
 
 // Estatísticas
-function StatsGrid({ stats, userType }) {
+function StatsGrid({ stats, userType, loans = [] }) {
+	const [carouselIndex, setCarouselIndex] = useState(0);
+	const intervalRef = useRef(null);
+	const reservas = Array.isArray(stats?.reservas) ? stats.reservas : [];
+	const reservasAtivas = reservas.filter(r => r.status === 'pendente').length;
+
+	// --- SINCRONIZAÇÃO COM LOANPAGE ---
+	// Função igual LoanPage
+	function calcularDiasEMulta(dataPrevistaDevolucao) {
+		if (!dataPrevistaDevolucao) return { diasRestantes: null, multa: 0 };
+		const hoje = new Date();
+		const devolucao = new Date(dataPrevistaDevolucao);
+		const diff = Math.ceil((devolucao - hoje) / (1000 * 60 * 60 * 24));
+		const diasRestantes = diff;
+		const multa = diff < 0 ? Math.abs(diff) * 1 : 0;
+		return { diasRestantes, multa };
+	}
+	const totalEmprestimos = loans.length;
+	const atrasados = loans.filter(l => {
+		const { diasRestantes } = calcularDiasEMulta(l.dataPrevistaDevolucao);
+		return diasRestantes < 0;
+	}).length;
+	const devolveHoje = loans.filter(l => {
+		const { diasRestantes } = calcularDiasEMulta(l.dataPrevistaDevolucao);
+		return diasRestantes === 0;
+	}).length;
+	// --- FIM SINCRONIZAÇÃO ---
+
+	useEffect(() => {
+		if (reservas.length > 1) {
+			intervalRef.current = setInterval(() => {
+				setCarouselIndex((prev) => (prev + 1) % reservas.length);
+			}, 3000);
+			return () => clearInterval(intervalRef.current);
+		}
+		return () => clearInterval(intervalRef.current);
+	}, [reservas.length]);
+
 	if (!stats) return null;
+
+	const livrosDisponiveisCorrigido = Math.max(0, (stats.limiteConcorrente || 0) - totalEmprestimos - reservasAtivas);
+
 	const getStatsCards = () => {
 		const baseCards = [
 			{
 				key: "livrosDisponiveis",
-				value: stats.livrosDisponiveis,
+				value: livrosDisponiveisCorrigido,
 				label: "Disponível para você",
-				desc: `Você ainda pode emprestar ${stats.livrosDisponiveis} livro${stats.livrosDisponiveis !== 1 ? "s" : ""} (limite: ${stats.limiteConcorrente})`,
-				icon: <Book size={32} />,
-				color: stats.livrosDisponiveis > 0 ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200",
-				iconColor: stats.livrosDisponiveis > 0 ? "text-green-600" : "text-orange-600",
+				desc: `Você ainda pode emprestar ${livrosDisponiveisCorrigido} livro${livrosDisponiveisCorrigido !== 1 ? "s" : ""} (limite: ${stats.limiteConcorrente})`,
+				icon: <Book size={32} />, color: livrosDisponiveisCorrigido > 0 ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200", iconColor: livrosDisponiveisCorrigido > 0 ? "text-green-600" : "text-orange-600",
 			},
 			{
 				key: "livrosEmprestados",
-				value: stats.livrosEmprestados,
+				value: totalEmprestimos,
 				label: "Emprestados",
-				desc: `Seus empréstimos ativos`,
-				icon: <BookOpen size={32} />,
-				color: "bg-blue-50 border-blue-200",
-				iconColor: "text-blue-600",
+				desc: `Seus empréstimos ativos${atrasados > 0 ? `, ${atrasados} atrasado(s)` : ""}`,
+				icon: <BookOpen size={32} />, color: "bg-blue-50 border-blue-200", iconColor: "text-blue-600",
 			},
 			{
-				key: "devolucoesPendentes",
-				value: stats.devolucoesPendentes,
-				label: "Devoluções",
-				desc: "Pendências de devolução",
-				icon: <Undo2 size={32} />,
-				color: stats.devolucoesPendentes > 0 ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200",
-				iconColor: stats.devolucoesPendentes > 0 ? "text-yellow-600" : "text-gray-600",
+				key: "devolveHoje",
+				value: devolveHoje,
+				label: "Devolve hoje",
+				desc: devolveHoje > 0 ? `Você deve devolver ${devolveHoje} livro(s) hoje` : "Nenhum livro para devolver hoje",
+				icon: <Clock size={32} />, color: devolveHoje > 0 ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200", iconColor: devolveHoje > 0 ? "text-yellow-600" : "text-gray-600",
+			},
+			{
+				key: "atrasos",
+				value: atrasados,
+				label: "Atrasos",
+				desc: atrasados > 0 ? `Você tem ${atrasados} empréstimo(s) em atraso` : "Nenhum empréstimo atrasado",
+				icon: <AlertTriangle size={32} />, color: atrasados > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200", iconColor: atrasados > 0 ? "text-red-600" : "text-gray-600",
 			},
 		];
 		if (userType === "professor") {
@@ -385,9 +462,7 @@ function StatsGrid({ stats, userType }) {
 				value: stats.bibliografiasGerenciadas || 0,
 				label: "Bibliografias",
 				desc: "Listas gerenciadas por você",
-				icon: <Users size={32} />,
-				color: "bg-purple-50 border-purple-200",
-				iconColor: "text-purple-600",
+				icon: <Users size={32} />, color: "bg-purple-50 border-purple-200", iconColor: "text-purple-600",
 			});
 		} else {
 			baseCards.push({
@@ -395,18 +470,47 @@ function StatsGrid({ stats, userType }) {
 				value: stats.multasPendentes,
 				label: "Multas",
 				desc: "Pendências financeiras",
-				icon: <CoinsIcon size={32} />,
-				color: stats.multasPendentes > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200",
-				iconColor: stats.multasPendentes > 0 ? "text-red-600" : "text-gray-600",
+				icon: <CoinsIcon size={32} />, color: stats.multasPendentes > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200", iconColor: stats.multasPendentes > 0 ? "text-red-600" : "text-gray-600",
 			});
 		}
 		return baseCards;
 	};
+
 	return (
-		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			{getStatsCards().map(({ key, ...card }) => (
-				<StatCard key={key} {...card} />
-			))}
+		<div>
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+				{getStatsCards().map(({ key, ...card }) => (
+					<StatCard key={key} {...card} />
+				))}
+			</div>
+			{/* Carrossel de reservas ativas */}
+			{reservas.length > 0 && (
+				<div className="bg-white border border-blue-100 rounded-xl p-4 mb-4 min-h-[60px] flex flex-col justify-center">
+					<h3 className="font-semibold text-blue-700 mb-2">Reservas Ativas</h3>
+					<div className="flex items-center justify-between">
+						<span className="font-medium text-blue-900">
+							{reservas[carouselIndex]?.tituloLivro || reservas[carouselIndex]?.bookId || reservas[carouselIndex]?.livroId || 'Reserva'}
+						</span>
+						<span className="text-gray-500 text-sm">
+							{reservas[carouselIndex]?.dataReserva ? new Date(reservas[carouselIndex].dataReserva).toLocaleDateString() : ''}
+						</span>
+					</div>
+				</div>
+			)}
+			{/* Lista de empréstimos atrasados */}
+			{Array.isArray(stats.emprestimosAtrasados) && stats.emprestimosAtrasados.length > 0 && (
+				<div className="bg-white border border-red-100 rounded-xl p-4 mb-4">
+					<h3 className="font-semibold text-red-700 mb-2">Empréstimos Atrasados</h3>
+					<ul className="divide-y">
+						{stats.emprestimosAtrasados.map((emp) => (
+							<li key={emp.id} className="py-1 flex justify-between items-center text-sm">
+								<span>{emp.livro?.titulo || emp.livroId || emp.bookId} - {emp.status}</span>
+								<span className="text-gray-500">{emp.dataEmprestimo ? new Date(emp.dataEmprestimo).toLocaleDateString() : ''}</span>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -486,7 +590,8 @@ function MobileSidebar({ user, open, onClose, handleNavigation }) {
 					<span className="text-xs mb-1 text-blue-200">BIBLIOTECA</span>
 					<NavItem icon={Home} label="Início" onClick={() => handleNavigation("home")}/>
 					<NavItem icon={Search} label="Pesquisar" onClick={() => handleNavigation("resultados")}/>
-					<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("reservas")}/>
+					<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("emprestimos")}/>
+					<NavItem icon={BookOpen} label="Reservas" onClick={() => handleNavigation("reservas")}/>
 				</nav>
 				<button className="absolute top-2 right-2 text-white text-2xl" onClick={onClose} aria-label="Fechar menu">×</button>
 			</aside>
@@ -494,7 +599,7 @@ function MobileSidebar({ user, open, onClose, handleNavigation }) {
 	);
 }
 
-function StatsSection({ stats, loading, error, userType, onRefresh }) {
+function StatsSection({ stats, loading, error, userType, onRefresh, loans = [] }) {
 	return (
 		<div className="mb-8">
 			<div className="flex justify-between items-center mb-4">
@@ -514,7 +619,7 @@ function StatsSection({ stats, loading, error, userType, onRefresh }) {
 					</div>
 				)}
 			</div>
-			{loading ? <StatsLoadingGrid /> : error && !stats ? <StatsErrorState error={error} onRetry={onRefresh} /> : <StatsGrid stats={stats} userType={userType} />}
+			{loading ? <StatsLoadingGrid /> : error && !stats ? <StatsErrorState error={error} onRetry={onRefresh} /> : <StatsGrid stats={stats} userType={userType} loans={loans} />}
 		</div>
 	);
 }
@@ -524,7 +629,7 @@ function QuickActions({ handleNavigation }) {
 		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
 			<QuickAction icon={<Search size={24} />} title="Pesquisar Livros" description="Encontre livros no acervo" onClick={() => handleNavigation("resultados")}
 				ariaLabel="Pesquisar livros" />
-			<QuickAction icon={<BookOpen size={24} />} title="Meus Empréstimos" description="Veja suas obras emprestadas" onClick={() => handleNavigation("reservas")}
+			<QuickAction icon={<BookOpen size={24} />} title="Meus Empréstimos" description="Veja suas obras emprestadas" onClick={() => handleNavigation("emprestimos")}
 				ariaLabel="Ver meus empréstimos" />
 			<QuickAction icon={<Undo2 size={24} />} title="Renovar Empréstimos" description="Renove o prazo das suas obras" onClick={null} disabled ariaLabel="Renovação indisponível" />
 		</div>

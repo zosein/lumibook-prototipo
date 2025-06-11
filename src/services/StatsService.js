@@ -7,26 +7,35 @@ import api from "./api";
 const StatsService = {
   // Buscar estatísticas do usuário
   async getUserStats(userId, userType = "aluno") {
-    const response = await api.get(`/stats/user/${userId}`, {
+    const response = await api.get(`/api/stats/user/${userId}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
     });
     const raw = response.data && response.data.data ? response.data.data : {};
-    return StatsService.validateStatsData({
-      livrosEmprestados: raw.livrosLidos || 0,
-      reservasAtivas: raw.reservasRealizadas || 0,
-      devolucoesPendentes: raw.atrasos || 0,
-      // Outros campos podem ser adicionados aqui se necessário
-    }, userType);
+
+    // Normalização para garantir compatibilidade
+    const reservas = Array.isArray(raw.reservas)
+      ? raw.reservas.map(r => ({
+          ...r,
+          tituloLivro: r.tituloLivro || (r.livro && r.livro.title) || "Livro"
+        }))
+      : [];
+
+    return {
+      ...raw,
+      reservas,
+      livrosDisponiveis: raw.livrosDisponiveis ?? (raw.limiteConcorrente && raw.livrosEmprestados !== undefined ? raw.limiteConcorrente - raw.livrosEmprestados : 0),
+      livrosEmprestados: raw.livrosEmprestados ?? 0,
+    };
   },
 
   // Buscar estatísticas gerais do sistema (admin)
   async getSystemStats() {
-    return api.get('/stats/system');
+    return api.get('/api/stats/system');
   },
 
   // Buscar estatísticas de uso de um livro
   async getBookStats(bookId) {
-    return api.get(`/stats/book/${bookId}`);
+    return api.get(`/api/stats/book/${bookId}`);
   },
 
   // Validar estrutura dos dados vindos da API - ATUALIZADO com cálculo correto
@@ -77,7 +86,7 @@ const StatsService = {
   // Atualizar uma estatística específica do usuário
   async updateStat(userId, statKey, newValue) {
     const response = await api.put(
-      `/stats/user/${userId}/${statKey}`,
+      `/api/stats/user/${userId}/${statKey}`,
       { value: newValue },
       {
         headers: {
