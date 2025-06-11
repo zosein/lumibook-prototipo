@@ -44,6 +44,16 @@ export default function LoanPage({ setCurrentPage }) {
     }
   };
 
+  const handleRenew = async (loanId) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    await LoanService.renewLoan(loanId, token);
+    fetchLoans();
+  } catch (err) {
+    setError(err.message);
+  }
+};
+
   // Filtro de pesquisa
   const filteredLoans = loans.filter(loan => {
     const q = searchQuery.trim().toLowerCase();
@@ -101,6 +111,11 @@ export default function LoanPage({ setCurrentPage }) {
             </span>
             {multa > 0 && (
               <span className="ml-2 text-xs text-red-600 font-semibold">Multa: R$ {multa.toFixed(2)}</span>
+            )}
+            {loan.renovacoes < 2 && (
+              <button className='ml-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition text-xs' onClick={() => handleRenew(loan._id || loan.id)}>
+                Renovar
+              </button>
             )}
             <button
               className="ml-auto px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-xs"
