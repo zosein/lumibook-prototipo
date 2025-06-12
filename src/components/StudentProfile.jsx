@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
 	Book,
 	Home,
@@ -7,117 +7,18 @@ import {
 	CoinsIcon,
 	Search,
 	ArrowLeft,
-	AlertTriangle,
-	Users,
 	Loader2,
 	Menu,
 	Clock,
 } from "lucide-react";
-import StatsService from "../services/StatsService";
-import { getUserById } from "../services/UserService";
-import { getAuthToken } from "../services/UserService";
-import { getUserAvatar } from "../services/avatarService";
 import * as ReservationService from '../services/ReservationService';
 import FineService from '../services/FineService';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import * as LoanService from '../services/LoanService';
-
-// Hook para buscar estatísticas do usuário
-function useUserStats(user, isLoggedIn, statsKey = 0) {
-	const [stats, setStats] = useState(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(null);
-
-	useEffect(() => {
-		async function fetchUserStats() {
-			if (!isLoggedIn || !user) {
-				setStats(null);
-				setLoading(false);
-				return;
-			}
-			setLoading(true);
-			setError(null);
-			try {
-				const statsData = await StatsService.getUserStats(user.id, false);
-				if (!statsData || typeof statsData !== 'object') {
-					setError('Não foi possível carregar as estatísticas.');
-					setStats(null);
-				} else {
-					setStats(statsData);
-				}
-			} catch (err) {
-				setError(err.message || "Erro ao carregar estatísticas");
-				setStats(null);
-			} finally {
-				setLoading(false);
-			}
-		}
-		fetchUserStats();
-	}, [user, user?.id, user?.papel, isLoggedIn, statsKey]);
-	return { stats, loading, error };
-}
-
-// Hook para buscar dados do perfil do usuário
-function useUserProfile(user, isLoggedIn) {
-	const [profile, setProfile] = useState(null);
-	const [loading, setLoading] = useState(true);
-
-	useEffect(() => {
-		async function fetchUserProfile() {
-			if (!isLoggedIn || !user || !user.id) {
-				setProfile(null);
-				setLoading(false);
-				return;
-			}
-			try {
-				const profileData = await getUserById(user.id, getAuthToken());
-				setProfile(profileData);
-			} catch (error) {
-				setProfile({
-					avatar: await getUserAvatar(user.id, getAuthToken()),
-					statusConta: "ativa",
-					membroDesde: "Janeiro 2024",
-					tipoLogin: user.papel === "aluno" ? "matrícula" : "email",
-				});
-			} finally {
-				setLoading(false);
-			}
-		}
-		fetchUserProfile();
-	}, [user, user?.id, user?.papel, isLoggedIn]);
-	return { profile, loading };
-}
-
-// Função utilitária para tema visual
-function getProfileTheme(papel) {
-	switch (papel) {
-		case 'professor':
-			return {
-				color: 'purple',
-				bg: 'bg-gradient-to-r from-purple-700 to-purple-400',
-				avatarBorder: 'border-purple-500',
-				icon: <Users size={32} />, // ou outro ícone de professor
-				frase: 'Ensino e inspiração',
-			};
-		case 'bibliotecario':
-			return {
-				color: 'green',
-				bg: 'bg-gradient-to-r from-green-700 to-green-400',
-				avatarBorder: 'border-green-500',
-				icon: <BookOpen size={32} />, // ou outro ícone de bibliotecário
-				frase: 'Organização e conhecimento',
-			};
-		default:
-			return {
-				color: 'blue',
-				bg: 'bg-gradient-to-r from-blue-600 to-blue-400',
-				avatarBorder: 'border-blue-500',
-				icon: <Book size={32} />, // aluno
-				frase: 'Bem-vindo ao seu espaço de aprendizado!',
-			};
-	}
-}
+import { getProfileTheme } from '../utils/themeUtils';
+import { useUserStats } from '../hooks/useUserStats';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 export default function StudentProfile({ user = { name: "ALUNO", avatar: null, papel: "aluno" }, setCurrentPage, isLoggedIn, showReservations = true }) {
 	const theme = getProfileTheme(user.papel);
@@ -145,6 +46,8 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 	// Estados para empréstimos
 	const [loans, setLoans] = useState([]);
 	const [loadingLoans, setLoadingLoans] = useState(true);
+	const [returningId, setReturningId] = useState(null);
+	const [borrowingId, setBorrowingId] = useState(null);
 
 	// Segurança: redireciona se não estiver logado
 	useEffect(() => {
@@ -185,7 +88,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 		fetchFines();
 	}, [user.id]);
 
-	// Buscar empréstimos ativos para sincronizar estatísticas
+	// Buscar empréstimos ativos
 	useEffect(() => {
 		async function fetchLoans() {
 			setLoadingLoans(true);
@@ -199,7 +102,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 			}
 		}
 		fetchLoans();
-	}, [user.id, statsKey]);
+	}, []);
 
 	useEffect(() => {
 		const atualizar = () => setStatsKey(k => k + 1);
@@ -219,7 +122,7 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 		try {
 			await ReservationService.cancelReservation(reservationId);
 			toast.success('Reserva cancelada!');
-			setReservations(reservations.filter(r => r.id !== reservationId));
+			setReservations(reservations.filter(r => r._id !== reservationId));
 		} catch (err) {
 			toast.error('Erro ao cancelar reserva: ' + (err.response?.data?.message || err.message));
 		} finally {
@@ -265,6 +168,19 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 			setShowFineHistory(true);
 		} finally {
 			setLoadingFineHistory(false);
+		}
+	};
+
+	const handleReturn = async (loanId) => {
+		try {
+			setReturningId(loanId);
+			await LoanService.returnLoan(loanId);
+			toast.success('Livro devolvido com sucesso!');
+			setLoans(loans.filter(loan => loan._id !== loanId));
+		} catch (error) {
+			toast.error(error.message || 'Erro ao devolver livro');
+		} finally {
+			setReturningId(null);
 		}
 	};
 
@@ -352,6 +268,108 @@ export default function StudentProfile({ user = { name: "ALUNO", avatar: null, p
 							onFetchHistory={fetchFineHistory}
 							payingId={payingId}
 						/>
+						<div className="bg-white rounded-lg shadow p-6">
+							<h2 className="text-xl font-semibold mb-4">Meus Empréstimos</h2>
+
+							{/* Seção de Reservas Disponíveis para Empréstimo */}
+							{reservations.length > 0 && (
+								<div className="mb-8">
+									<h3 className="text-lg font-medium mb-3">Reservas Disponíveis para Empréstimo</h3>
+									<div className="space-y-4">
+										{reservations.map((reservation) => (
+											reservation.livro ? (
+												<div key={reservation._id} className="border rounded-lg p-4 bg-blue-50">
+													<div className="flex justify-between items-start">
+														<div>
+															<h4 className="font-medium">{reservation.livro?.title || reservation.livro?.titulo || reservation.tituloLivro || 'Título não disponível'}</h4>
+															<p className="text-sm text-gray-600">
+																Reservado em: {new Date(reservation.dataReserva).toLocaleDateString()}
+															</p>
+														</div>
+														<button
+															onClick={async () => {
+																try {
+																	setBorrowingId(reservation._id);
+																	const token = localStorage.getItem('authToken');
+																	await LoanService.createLoan({
+																		usuarioId: user.id,
+																		livroId: reservation.livro.id || reservation.livro._id,
+																		tituloLivro: reservation.livro.title || reservation.livro.titulo || reservation.tituloLivro
+																	}, token);
+																	toast.success('Livro emprestado com sucesso!');
+																	setCurrentPage('emprestimos');
+																	window.dispatchEvent(new Event('atualizar-estatisticas'));
+																} catch (err) {
+																	toast.error('Erro ao realizar empréstimo: ' + (err.response?.data?.message || err.message));
+																} finally {
+																	setBorrowingId(null);
+																}
+															}}
+															disabled={borrowingId === reservation._id}
+															className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+														>
+															{borrowingId === reservation._id ? (
+																<Loader2 className="h-4 w-4 animate-spin" />
+															) : (
+																'Realizar Empréstimo'
+															)}
+														</button>
+													</div>
+												</div>
+											) : (
+												<div key={reservation._id} className="border rounded-lg p-4 bg-blue-50 text-gray-500">
+													<div>Livro não disponível para esta reserva.</div>
+												</div>
+											)
+										))}
+									</div>
+								</div>
+							)}
+
+							{/* Lista de Empréstimos Ativos */}
+							{loadingLoans ? (
+								<div className="flex justify-center items-center py-4">
+									<Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+								</div>
+							) : loans.length === 0 ? (
+								<p className="text-gray-500 text-center py-4">Nenhum empréstimo ativo</p>
+							) : (
+								<div className="space-y-4">
+									{loans.map((loan) => (
+										loan.livro ? (
+											<div key={loan._id} className="border rounded-lg p-4">
+												<div className="flex justify-between items-start">
+													<div>
+														<h3 className="font-medium">{loan.livro?.title || loan.livro?.titulo || 'Título não disponível'}</h3>
+														<p className="text-sm text-gray-600">
+															Emprestado em: {new Date(loan.dataEmprestimo).toLocaleDateString()}
+														</p>
+														<p className="text-sm text-gray-600">
+															Devolução prevista: {new Date(loan.dataPrevistaDevolucao).toLocaleDateString()}
+														</p>
+													</div>
+													<button
+														onClick={() => handleReturn(loan._id)}
+														disabled={returningId === loan._id}
+														className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+													>
+														{returningId === loan._id ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															'Devolver'
+														)}
+													</button>
+												</div>
+											</div>
+										) : (
+											<div key={loan._id} className="border rounded-lg p-4 text-gray-500">
+												<div>Livro não disponível para este empréstimo.</div>
+											</div>
+										)
+									))}
+								</div>
+							)}
+						</div>
 					</div>
 				</main>
 			</div>
@@ -383,243 +401,129 @@ function InfoCard({ label, value, valueColor = "text-gray-900" }) {
 }
 
 // Estatísticas
-function StatsGrid({ stats, userType, loans = [] }) {
-	const [carouselIndex, setCarouselIndex] = useState(0);
-	const intervalRef = useRef(null);
-	const reservas = Array.isArray(stats?.reservas) ? stats.reservas : [];
-	const reservasAtivas = reservas.filter(r => r.status === 'pendente').length;
-
-	// --- SINCRONIZAÇÃO COM LOANPAGE ---
-	// Função igual LoanPage
-	function calcularDiasEMulta(dataPrevistaDevolucao) {
-		if (!dataPrevistaDevolucao) return { diasRestantes: null, multa: 0 };
-		const hoje = new Date();
-		const devolucao = new Date(dataPrevistaDevolucao);
-		const diff = Math.ceil((devolucao - hoje) / (1000 * 60 * 60 * 24));
-		const diasRestantes = diff;
-		const multa = diff < 0 ? Math.abs(diff) * 1 : 0;
-		return { diasRestantes, multa };
+function StatsSection({ stats, loading }) {
+	if (loading) {
+		return (
+			<div className="bg-white rounded-lg shadow p-6">
+				<div className="flex justify-center items-center py-4">
+					<Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+				</div>
+			</div>
+		);
 	}
-	const totalEmprestimos = loans.length;
-	const atrasados = loans.filter(l => {
-		const { diasRestantes } = calcularDiasEMulta(l.dataPrevistaDevolucao);
-		return diasRestantes < 0;
-	}).length;
-	const devolveHoje = loans.filter(l => {
-		const { diasRestantes } = calcularDiasEMulta(l.dataPrevistaDevolucao);
-		return diasRestantes === 0;
-	}).length;
-	// --- FIM SINCRONIZAÇÃO ---
 
-	useEffect(() => {
-		if (reservas.length > 1) {
-			intervalRef.current = setInterval(() => {
-				setCarouselIndex((prev) => (prev + 1) % reservas.length);
-			}, 3000);
-			return () => clearInterval(intervalRef.current);
-		}
-		return () => clearInterval(intervalRef.current);
-	}, [reservas.length]);
-
-	if (!stats) return null;
-
-	const livrosDisponiveisCorrigido = Math.max(0, (stats.limiteConcorrente || 0) - totalEmprestimos - reservasAtivas);
-
-	const getStatsCards = () => {
-		const baseCards = [
-			{
-				key: "livrosDisponiveis",
-				value: livrosDisponiveisCorrigido,
-				label: "Disponível para você",
-				desc: `Você ainda pode emprestar ${livrosDisponiveisCorrigido} livro${livrosDisponiveisCorrigido !== 1 ? "s" : ""} (limite: ${stats.limiteConcorrente})`,
-				icon: <Book size={32} />, color: livrosDisponiveisCorrigido > 0 ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200", iconColor: livrosDisponiveisCorrigido > 0 ? "text-green-600" : "text-orange-600",
-			},
-			{
-				key: "livrosEmprestados",
-				value: totalEmprestimos,
-				label: "Emprestados",
-				desc: `Seus empréstimos ativos${atrasados > 0 ? `, ${atrasados} atrasado(s)` : ""}`,
-				icon: <BookOpen size={32} />, color: "bg-blue-50 border-blue-200", iconColor: "text-blue-600",
-			},
-			{
-				key: "devolveHoje",
-				value: devolveHoje,
-				label: "Devolve hoje",
-				desc: devolveHoje > 0 ? `Você deve devolver ${devolveHoje} livro(s) hoje` : "Nenhum livro para devolver hoje",
-				icon: <Clock size={32} />, color: devolveHoje > 0 ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200", iconColor: devolveHoje > 0 ? "text-yellow-600" : "text-gray-600",
-			},
-			{
-				key: "atrasos",
-				value: atrasados,
-				label: "Atrasos",
-				desc: atrasados > 0 ? `Você tem ${atrasados} empréstimo(s) em atraso` : "Nenhum empréstimo atrasado",
-				icon: <AlertTriangle size={32} />, color: atrasados > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200", iconColor: atrasados > 0 ? "text-red-600" : "text-gray-600",
-			},
-		];
-		if (userType === "professor") {
-			baseCards.push({
-				key: "bibliografiasGerenciadas",
-				value: stats.bibliografiasGerenciadas || 0,
-				label: "Bibliografias",
-				desc: "Listas gerenciadas por você",
-				icon: <Users size={32} />, color: "bg-purple-50 border-purple-200", iconColor: "text-purple-600",
-			});
-		} else {
-			baseCards.push({
-				key: "multasPendentes",
-				value: stats.multasPendentes,
-				label: "Multas",
-				desc: "Pendências financeiras",
-				icon: <CoinsIcon size={32} />, color: stats.multasPendentes > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200", iconColor: stats.multasPendentes > 0 ? "text-red-600" : "text-gray-600",
-			});
-		}
-		return baseCards;
-	};
+	if (!stats || !stats.user) {
+		return (
+			<div className="bg-white rounded-lg shadow p-6">
+				<p className="text-gray-500 text-center py-4">Nenhuma estatística disponível</p>
+			</div>
+		);
+	}
 
 	return (
-		<div>
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-				{getStatsCards().map(({ key, ...card }) => (
-					<StatCard key={key} {...card} />
-				))}
-			</div>
-			{/* Carrossel de reservas ativas */}
-			{reservas.length > 0 && (
-				<div className="bg-white border border-blue-100 rounded-xl p-4 mb-4 min-h-[60px] flex flex-col justify-center">
-					<h3 className="font-semibold text-blue-700 mb-2">Reservas Ativas</h3>
-					<div className="flex items-center justify-between">
-						<span className="font-medium text-blue-900">
-							{reservas[carouselIndex]?.tituloLivro || reservas[carouselIndex]?.bookId || reservas[carouselIndex]?.livroId || 'Reserva'}
-						</span>
-						<span className="text-gray-500 text-sm">
-							{reservas[carouselIndex]?.dataReserva ? new Date(reservas[carouselIndex].dataReserva).toLocaleDateString() : ''}
-						</span>
+		<div className="bg-white rounded-lg shadow p-6">
+			<h2 className="text-xl font-semibold mb-6">Estatísticas</h2>
+
+			{/* Informações do Usuário */}
+			<div className="mb-8">
+				<h3 className="text-lg font-medium mb-4">Informações do Usuário</h3>
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="bg-gray-50 p-4 rounded-lg">
+						<p className="text-sm text-gray-600">Nome</p>
+						<p className="font-medium">{stats.user?.nome || 'N/A'}</p>
+					</div>
+					<div className="bg-gray-50 p-4 rounded-lg">
+						<p className="text-sm text-gray-600">Papel</p>
+						<p className="font-medium capitalize">{stats.user?.papel || 'N/A'}</p>
+					</div>
+					<div className="bg-gray-50 p-4 rounded-lg">
+						<p className="text-sm text-gray-600">Membro desde</p>
+						<p className="font-medium">{stats.user?.dataRegistro ? new Date(stats.user.dataRegistro).toLocaleDateString() : 'N/A'}</p>
 					</div>
 				</div>
-			)}
-			{/* Lista de empréstimos atrasados */}
-			{Array.isArray(stats.emprestimosAtrasados) && stats.emprestimosAtrasados.length > 0 && (
-				<div className="bg-white border border-red-100 rounded-xl p-4 mb-4">
-					<h3 className="font-semibold text-red-700 mb-2">Empréstimos Atrasados</h3>
-					<ul className="divide-y">
-						{stats.emprestimosAtrasados.map((emp) => (
-							<li key={emp.id} className="py-1 flex justify-between items-center text-sm">
-								<span>{emp.livro?.titulo || emp.livroId || emp.bookId} - {emp.status}</span>
-								<span className="text-gray-500">{emp.dataEmprestimo ? new Date(emp.dataEmprestimo).toLocaleDateString() : ''}</span>
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
-		</div>
-	);
-}
-
-function StatCard({ value, label, desc, icon, color = "bg-gray-50 border-gray-200", iconColor = "text-gray-600" }) {
-	return (
-		<div className={`${color} border rounded-xl p-4 transition-all duration-200 hover:shadow-md hover:scale-105 cursor-default`}>
-			<div className="flex items-center justify-between mb-3">
-				<span className="text-2xl font-bold text-gray-900">{value}</span>
-				<div className={`${iconColor}`}>{icon}</div>
 			</div>
+
+			{/* Empréstimos */}
+			<div className="mb-8">
+				<h3 className="text-lg font-medium mb-4">Empréstimos</h3>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					<div className="bg-blue-50 p-4 rounded-lg">
+						<p className="text-sm text-blue-600">Total de Empréstimos</p>
+						<p className="text-2xl font-bold text-blue-700">{stats.emprestimos?.total || 0}</p>
+					</div>
+					<div className="bg-green-50 p-4 rounded-lg">
+						<p className="text-sm text-green-600">Empréstimos Ativos</p>
+						<p className="text-2xl font-bold text-green-700">{stats.emprestimos?.ativos || 0}</p>
+					</div>
+					<div className="bg-purple-50 p-4 rounded-lg">
+						<p className="text-sm text-purple-600">Empréstimos Concluídos</p>
+						<p className="text-2xl font-bold text-purple-700">{stats.emprestimos?.concluidos || 0}</p>
+					</div>
+					<div className="bg-red-50 p-4 rounded-lg">
+						<p className="text-sm text-red-600">Empréstimos Atrasados</p>
+						<p className="text-2xl font-bold text-red-700">{stats.emprestimos?.atrasados || 0}</p>
+					</div>
+					<div className="bg-yellow-50 p-4 rounded-lg">
+						<p className="text-sm text-yellow-600">Tempo Médio (dias)</p>
+						<p className="text-2xl font-bold text-yellow-700">{stats.emprestimos?.tempoMedio?.toFixed(1) || '0.0'}</p>
+					</div>
+				</div>
+			</div>
+
+			{/* Multas */}
+			<div className="mb-8">
+				<h3 className="text-lg font-medium mb-4">Multas</h3>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+					<div className="bg-red-50 p-4 rounded-lg">
+						<p className="text-sm text-red-600">Total de Multas</p>
+						<p className="text-2xl font-bold text-red-700">{stats.multas?.total || 0}</p>
+					</div>
+					<div className="bg-orange-50 p-4 rounded-lg">
+						<p className="text-sm text-orange-600">Multas Pendentes</p>
+						<p className="text-2xl font-bold text-orange-700">{stats.multas?.pendentes || 0}</p>
+					</div>
+					<div className="bg-green-50 p-4 rounded-lg">
+						<p className="text-sm text-green-600">Multas Pagas</p>
+						<p className="text-2xl font-bold text-green-700">{stats.multas?.pagas || 0}</p>
+					</div>
+					<div className="bg-yellow-50 p-4 rounded-lg">
+						<p className="text-sm text-yellow-600">Valor Pendente</p>
+						<p className="text-2xl font-bold text-yellow-700">R$ {stats.multas?.valorPendente?.toFixed(2) || '0.00'}</p>
+					</div>
+				</div>
+			</div>
+
+			{/* Reservas */}
+			<div className="mb-8">
+				<h3 className="text-lg font-medium mb-4">Reservas</h3>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+					<div className="bg-blue-50 p-4 rounded-lg">
+						<p className="text-sm text-blue-600">Total de Reservas</p>
+						<p className="text-2xl font-bold text-blue-700">{stats.reservas?.total || 0}</p>
+					</div>
+					<div className="bg-green-50 p-4 rounded-lg">
+						<p className="text-sm text-green-600">Reservas Ativas</p>
+						<p className="text-2xl font-bold text-green-700">{stats.reservas?.ativas || 0}</p>
+					</div>
+					<div className="bg-purple-50 p-4 rounded-lg">
+						<p className="text-sm text-purple-600">Reservas Concluídas</p>
+						<p className="text-2xl font-bold text-purple-700">{stats.reservas?.concluidas || 0}</p>
+					</div>
+					<div className="bg-red-50 p-4 rounded-lg">
+						<p className="text-sm text-red-600">Reservas Canceladas</p>
+						<p className="text-2xl font-bold text-red-700">{stats.reservas?.canceladas || 0}</p>
+					</div>
+				</div>
+			</div>
+
+			{/* Biblioteca */}
 			<div>
-				<h3 className="font-semibold text-gray-900 text-sm">{label}</h3>
-				<p className="text-xs text-gray-600 mt-1">{desc}</p>
-			</div>
-		</div>
-	);
-}
-
-function StatsLoadingGrid() {
-	return (
-		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			{Array.from({ length: 4 }).map((_, index) => (
-				<div key={index} className="bg-white border border-gray-200 rounded-xl p-4 animate-pulse">
-					<div className="flex items-center justify-between mb-3">
-						<div className="h-8 bg-gray-300 rounded w-12"></div>
-						<div className="h-8 w-8 bg-gray-300 rounded"></div>
-					</div>
-					<div className="space-y-2">
-						<div className="h-4 bg-gray-300 rounded w-20"></div>
-						<div className="h-3 bg-gray-300 rounded w-32"></div>
-					</div>
+				<h3 className="text-lg font-medium mb-4">Biblioteca</h3>
+				<div className="bg-gray-50 p-4 rounded-lg">
+					<p className="text-sm text-gray-600">Total de Livros Disponíveis</p>
+					<p className="text-2xl font-bold text-gray-700">{stats.biblioteca?.livrosDisponiveis || 0}</p>
 				</div>
-			))}
-		</div>
-	);
-}
-
-function StatsErrorState({ error, onRetry }) {
-	let msg = error;
-	if (msg && msg.match(/duplicate key|E11000|stack|index|collection|Mongo/gi)) {
-		msg = 'Erro ao carregar dados do perfil. Tente novamente.';
-	}
-	return (
-		<div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-			<div className="flex items-center justify-center gap-2 text-red-600 mb-2">
-				<AlertTriangle size={24} />
-				<h3 className="font-semibold">Erro ao carregar estatísticas</h3>
 			</div>
-			<p className="text-red-700 text-sm mb-4">{msg}</p>
-			<button onClick={onRetry} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">Tentar novamente</button>
-		</div>
-	);
-}
-
-// Novo componente MobileSidebar
-function MobileSidebar({ user, open, onClose, handleNavigation }) {
-	const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Usuário')}&background=3B82F6&color=fff&size=128`;
-	return (
-		<div className={`fixed inset-0 z-50 transition-all duration-300 ${open ? 'block' : 'pointer-events-none'}`}
-			style={{ display: open ? 'block' : 'none' }}>
-			{/* Overlay */}
-			<div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose}></div>
-			{/* Drawer */}
-			<aside className={`absolute left-0 top-0 h-full w-64 bg-blue-700 text-white shadow-lg transform ${open ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300`}>
-				<div className="flex flex-col items-center py-6">
-					<img
-						src={avatarUrl}
-						alt="Avatar do usuário"
-						className="w-16 h-16 rounded-full border-2 border-white mb-2"
-					/>
-					<span className="font-semibold text-lg mb-1">{user.name}</span>
-					{user.matricula && <span className="text-xs text-blue-200">Mat: {user.matricula}</span>}
-					{user.email && <span className="text-xs text-blue-200">{user.email}</span>}
-				</div>
-				<nav className="flex flex-col gap-2 px-6 mt-4">
-					<span className="text-xs mb-1 text-blue-200">BIBLIOTECA</span>
-					<NavItem icon={Home} label="Início" onClick={() => handleNavigation("home")}/>
-					<NavItem icon={Search} label="Pesquisar" onClick={() => handleNavigation("resultados")}/>
-					<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("emprestimos")}/>
-					<NavItem icon={BookOpen} label="Reservas" onClick={() => handleNavigation("reservas")}/>
-				</nav>
-				<button className="absolute top-2 right-2 text-white text-2xl" onClick={onClose} aria-label="Fechar menu">×</button>
-			</aside>
-		</div>
-	);
-}
-
-function StatsSection({ stats, loading, error, userType, onRefresh, loans = [] }) {
-	return (
-		<div className="mb-8">
-			<div className="flex justify-between items-center mb-4">
-				<h2 className="text-xl font-semibold text-gray-900">Suas Estatísticas</h2>
-				{stats && (
-					<div className="flex items-center gap-2 text-sm text-gray-500">
-						{stats.fonte === "offline" && (
-							<div className="flex items-center gap-1 text-amber-600">
-								<AlertTriangle size={14} />
-								<span>Dados offline</span>
-							</div>
-						)}
-						{stats.ultimaAtualizacao && (
-							<span>Atualizado: {new Date(stats.ultimaAtualizacao).toLocaleTimeString()}</span>
-						)}
-						<button onClick={onRefresh} className="text-blue-600 hover:text-blue-700 ml-2">Atualizar</button>
-					</div>
-				)}
-			</div>
-			{loading ? <StatsLoadingGrid /> : error && !stats ? <StatsErrorState error={error} onRetry={onRefresh} /> : <StatsGrid stats={stats} userType={userType} loans={loans} />}
 		</div>
 	);
 }
@@ -692,50 +596,115 @@ function Modal({ open, onClose, title, children }) {
 
 // Atualizar ReservationsSection para usar Modal
 function ReservationsSection({ reservations, loading, history, loadingHistory, showHistory, onCancel, onFetchHistory, cancelingId }) {
-	const [modalOpen, setModalOpen] = useState(false);
-	const reservationsSafe = Array.isArray(reservations) ? reservations : [];
-	const historySafe = Array.isArray(history) ? history : [];
+	const [borrowingId, setBorrowingId] = useState(null);
+
+	const handleBorrow = async (reservationId) => {
+		try {
+			setBorrowingId(reservationId);
+			await LoanService.createLoan(reservationId);
+			toast.success('Livro emprestado com sucesso!');
+			// Atualizar a lista de reservas
+			onFetchHistory();
+		} catch (error) {
+			toast.error(error.message || 'Erro ao realizar empréstimo');
+		} finally {
+			setBorrowingId(null);
+		}
+	};
+
 	return (
-		<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
-			<h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-				<BookOpen size={24} /> Reservas Ativas
-			</h2>
+		<div className="bg-white rounded-lg shadow p-6">
+			<h2 className="text-xl font-semibold mb-4">Minhas Reservas</h2>
+			
 			{loading ? (
-				<div>Carregando reservas...</div>
-			) : reservationsSafe.length === 0 ? (
-				<div>Nenhuma reserva ativa.</div>
+				<div className="flex justify-center items-center py-4">
+					<Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+				</div>
+			) : reservations.length === 0 ? (
+				<p className="text-gray-500 text-center py-4">Nenhuma reserva ativa</p>
 			) : (
-				<ul className="divide-y">
-					{reservationsSafe.map((res) => (
-						<li key={res.id} className="py-2 flex justify-between items-center">
-							<div>
-								<span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva})</span>
-							</div>
-							<button className="px-3 py-1 bg-red-600 text-white rounded text-sm" onClick={() => onCancel(res.id)} disabled={cancelingId === res.id}>
-								{cancelingId === res.id ? 'Cancelando...' : 'Cancelar'}
-							</button>
-						</li>
-					))}
-				</ul>
-			)}
-			<button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded" onClick={() => { onFetchHistory(); setModalOpen(true); }}>Ver histórico de reservas</button>
-			<Modal open={modalOpen && showHistory} onClose={() => setModalOpen(false)} title="Histórico de Reservas">
-				{loadingHistory ? (
-					<div>Carregando histórico...</div>
-				) : historySafe.length === 0 ? (
-					<div>Nenhuma reserva anterior encontrada.</div>
-				) : (
-					<ul className="divide-y">
-						{historySafe.map((res) => (
-							<li key={res.id} className="py-2 flex justify-between items-center">
+				<div className="space-y-4">
+					{reservations.map((reservation) => (
+						<div key={reservation._id} className="border rounded-lg p-4">
+							<div className="flex justify-between items-start">
 								<div>
-									<span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva} - {res.status})</span>
+									<h3 className="font-medium">{reservation.livro?.title || reservation.livro?.titulo || reservation.tituloLivro || 'Título não disponível'}</h3>
+									<p className="text-sm text-gray-600">
+										Reservado em: {new Date(reservation.dataReserva).toLocaleDateString()}
+									</p>
+									<p className="text-sm text-gray-600">
+										Status: {reservation.status}
+									</p>
 								</div>
-							</li>
-						))}
-					</ul>
+								<div className="flex space-x-2">
+									{reservation.status === 'disponivel' && (
+										<button
+											onClick={() => handleBorrow(reservation._id)}
+											disabled={borrowingId === reservation._id}
+											className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+										>
+											{borrowingId === reservation._id ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : (
+												'Emprestar'
+											)}
+										</button>
+									)}
+
+									<button
+										onClick={() => onCancel(reservation._id)}
+										disabled={cancelingId === reservation._id}
+										className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
+									>
+										{cancelingId === reservation._id ? (
+											<Loader2 className="h-4 w-4 animate-spin" />
+										) : (
+											'Cancelar'
+										)}
+									</button>
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
+			)}
+
+			{/* Histórico de Reservas */}
+			<div className="mt-6">
+				<button
+					onClick={onFetchHistory}
+					className="text-blue-500 hover:text-blue-600 flex items-center"
+				>
+					<Clock className="h-4 w-4 mr-1" />
+					{showHistory ? 'Ocultar Histórico' : 'Ver Histórico'}
+				</button>
+
+				{showHistory && (
+					<div className="mt-4">
+						{loadingHistory ? (
+							<div className="flex justify-center items-center py-4">
+								<Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+							</div>
+						) : history.length === 0 ? (
+							<p className="text-gray-500 text-center py-4">Nenhum histórico de reservas</p>
+						) : (
+							<div className="space-y-4">
+								{history.map((reservation) => (
+									<div key={reservation._id} className="border rounded-lg p-4">
+										<h3 className="font-medium">{reservation.livro?.title || reservation.livro?.titulo || reservation.tituloLivro || 'Título não disponível'}</h3>
+										<p className="text-sm text-gray-600">
+											Reservado em: {new Date(reservation.dataReserva).toLocaleDateString()}
+										</p>
+										<p className="text-sm text-gray-600">
+											Status: {reservation.status}
+										</p>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
 				)}
-			</Modal>
+			</div>
 		</div>
 	);
 }
@@ -786,6 +755,39 @@ function FinesSection({ fines, loading, history, loadingHistory, showHistory, on
 					</ul>
 				)}
 			</Modal>
+		</div>
+	);
+}
+
+// Novo componente MobileSidebar
+function MobileSidebar({ user, open, onClose, handleNavigation }) {
+	const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Usuário')}&background=3B82F6&color=fff&size=128`;
+	return (
+		<div className={`fixed inset-0 z-50 transition-all duration-300 ${open ? 'block' : 'pointer-events-none'}`}
+			style={{ display: open ? 'block' : 'none' }}>
+			{/* Overlay */}
+			<div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose}></div>
+			{/* Drawer */}
+			<aside className={`absolute left-0 top-0 h-full w-64 bg-blue-700 text-white shadow-lg transform ${open ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300`}>
+				<div className="flex flex-col items-center py-6">
+					<img
+						src={avatarUrl}
+						alt="Avatar do usuário"
+						className="w-16 h-16 rounded-full border-2 border-white mb-2"
+					/>
+					<span className="font-semibold text-lg mb-1">{user.name}</span>
+					{user.matricula && <span className="text-xs text-blue-200">Mat: {user.matricula}</span>}
+					{user.email && <span className="text-xs text-blue-200">{user.email}</span>}
+				</div>
+				<nav className="flex flex-col gap-2 px-6 mt-4">
+					<span className="text-xs mb-1 text-blue-200">BIBLIOTECA</span>
+					<NavItem icon={Home} label="Início" onClick={() => handleNavigation("home")}/>
+					<NavItem icon={Search} label="Pesquisar" onClick={() => handleNavigation("resultados")}/>
+					<NavItem icon={BookOpen} label="Empréstimos" onClick={() => handleNavigation("emprestimos")}/>
+					<NavItem icon={BookOpen} label="Reservas" onClick={() => handleNavigation("reservas")}/>
+				</nav>
+				<button className="absolute top-2 right-2 text-white text-2xl" onClick={onClose} aria-label="Fechar menu">×</button>
+			</aside>
 		</div>
 	);
 }

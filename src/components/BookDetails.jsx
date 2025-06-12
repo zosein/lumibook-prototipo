@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Info } from 'lucide-react';
+import { Book, Info } from 'lucide-react';
 import CatalogService from '../services/CatalogService';
 import * as ReservationService from '../services/ReservationService';
-import * as LoanService from '../services/LoanService';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function BookDetails({ setCurrentPage, bookId, navigateToDetails }) {
   const [livro, setLivro] = useState(null);
@@ -52,55 +53,57 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
     try {
       const token = localStorage.getItem('authToken');
       const user = JSON.parse(localStorage.getItem('userData'));
+      
+      // Primeiro, criar uma reserva
+      const reservationPayload = {
+        usuarioId: user.id,
+        livroId: livro.id,
+        tituloLivro: livro.titulo
+      };
+      
+      const reservationRes = await ReservationService.createReservation(reservationPayload, token);
+      
+      if (reservationRes.success) {
+        toast.success('Livro reservado com sucesso! Redirecionando para suas reservas...');
+        if (typeof setCurrentPage === 'function') setCurrentPage('reservas');
+      } else {
+        toast.error(reservationRes.message || 'Erro ao reservar livro.');
+      }
+    } catch (err) {
+      if (err.message && err.message.includes('Não há exemplares disponíveis')) {
+        toast.info('Não há exemplares disponíveis. Você pode reservar este livro.');
+        atualizarLivro();
+      } else {
+        toast.error('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
+      }
+    }
+  };
+
+  // Função de reserva
+  const handleReserve = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const user = JSON.parse(localStorage.getItem('userData'));
+      
       const payload = {
         usuarioId: user.id,
         livroId: livro.id,
         tituloLivro: livro.titulo
       };
-      const res = await LoanService.createLoan(payload, token);
-      if (res.success) {
-        alert('Empréstimo realizado com sucesso!');
-        setLivro(res.data.livro); // Atualiza estado do livro com resposta da API
-        if (typeof setCurrentPage === 'function') setCurrentPage('emprestimos');
-      } else {
-        alert(res.message || 'Erro ao realizar empréstimo.');
-      }
-    } catch (err) {
-      if (err.message && err.message.includes('Não há exemplares disponíveis')) {
-        alert('Não há exemplares disponíveis. Você pode reservar este livro.');
-        atualizarLivro();
-      } else {
-        alert('Erro ao realizar empréstimo: ' + (err.response?.data?.message || err.message));
-      }
-    }
-  };
-
-  // Função de reserva (ajustada para tratar resposta da API)
-  const handleReserve = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const user = JSON.parse(localStorage.getItem('userData'));
-      const payload = { usuarioId: user.id, livroId: livro.id };
+      
       const res = await ReservationService.createReservation(payload, token);
-      if (res && res.success) {
-        alert('Reserva realizada com sucesso!');
-        atualizarLivro();
-        if (typeof setCurrentPage === 'function') setCurrentPage('perfil');
-      } else if (res && res.error) {
-        alert(res.error);
-        atualizarLivro();
-      } else {
-        alert('Erro ao reservar livro.');
-        atualizarLivro();
+      
+      if (res.success) {
+        toast.success('Livro reservado com sucesso! Redirecionando para suas reservas...');
+        if (typeof setCurrentPage === 'function') setCurrentPage('reservas');
+        // Atualizar estatísticas
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('atualizar-estatisticas'));
+        }
       }
     } catch (err) {
-      if (err.message && err.message.includes('exemplares disponíveis')) {
-        alert('Ainda há exemplares disponíveis para empréstimo. Não é possível reservar.');
-        atualizarLivro();
-      } else {
-        alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
-        atualizarLivro();
-      }
+      console.error('Erro na reserva:', err);
+      toast.error('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -209,14 +212,13 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
               </div>
             </div>
             <div className="flex gap-2">
-              {/* Botão de Empréstimo: só aparece se houver exemplares disponíveis */}
-              {Number(livro.exemplares?.disponiveis) > 0 && (
-                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition" onClick={handleLoan}>Emprestar</button>
-              )}
-              {/* Botão de Reserva: só aparece se não houver exemplares disponíveis */}
-              {Number(livro.exemplares?.disponiveis) === 0 && (
-                <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition" onClick={handleReserve}>Reservar (entrar na fila)</button>
-              )}
+              {/* Botão de Reserva: sempre disponível */}
+              <button 
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition" 
+                onClick={handleReserve}
+              >
+                Reservar
+              </button>
               {livro.tipo === "E-book" && (
                 <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded">Download (E-book)</button>
               )}
@@ -238,7 +240,7 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
             >
               <div className="flex justify-center mb-2">
                 <div className="bg-gray-200 p-3 rounded">
-                  <BookOpen size={30} className="text-gray-500" />
+                  <Book size={30} className="text-gray-500" />
                 </div>
               </div>
               <h3 className="font-medium text-center text-sm mb-1">{item.titulo}</h3>

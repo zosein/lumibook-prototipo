@@ -159,7 +159,7 @@ export default function LoanPage({ setCurrentPage }) {
   return (
     <div className="min-h-screen flex flex-col bg-white">
       {/* Resumo fixo no topo */}
-      <header className="w-full bg-white flex flex-col items-center gap-2 px-4 py-6 shadow-none border-b border-gray-100 sticky top-0 z-20">
+      <header className="w-full bg-white flex flex-col items-center gap-2 px-4 py-4 shadow-none border-b border-gray-100 sticky top-0 z-20">
         <div className="flex items-center w-full max-w-3xl mx-auto">
           <button onClick={() => setCurrentPage('perfil')} className="text-gray-400 p-2 rounded-lg hover:bg-gray-100 transition-all duration-200 mr-2">
             <ArrowLeft size={22} />
@@ -169,7 +169,7 @@ export default function LoanPage({ setCurrentPage }) {
             <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Meus Empréstimos</h1>
           </div>
         </div>
-        <div className="flex gap-4 mt-4 justify-center w-full max-w-3xl">
+        <div className="flex gap-4 mt-2 justify-center w-full max-w-3xl">
           <div className="bg-gray-50 rounded-2xl px-6 py-3 flex flex-col items-center shadow-none border border-gray-100">
             <BookOpen size={24} className="text-blue-400 mb-1" />
             <span className="text-xs text-gray-400">Total</span>
@@ -187,7 +187,7 @@ export default function LoanPage({ setCurrentPage }) {
           </div>
         </div>
         {/* Barra de pesquisa minimalista integrada */}
-        <div className="relative mt-6 w-full max-w-3xl flex justify-end mx-auto">
+        <div className="relative mt-3 w-full max-w-3xl flex justify-end mx-auto">
           <div className="flex items-center w-full bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 shadow-none">
             <SearchIcon size={20} className="text-gray-400 mr-2" />
             <input
@@ -201,7 +201,7 @@ export default function LoanPage({ setCurrentPage }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 px-2 py-10 w-full flex flex-col items-center justify-center bg-white">
+      <main className="flex-1 px-2 py-4 w-full flex flex-col items-center bg-white">
         {loading ? (
           <div className="text-center text-blue-400 mt-16 text-lg font-medium">Carregando empréstimos...</div>
         ) : error ? (
@@ -221,7 +221,7 @@ export default function LoanPage({ setCurrentPage }) {
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pb-8 justify-items-center">
+          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pb-8 justify-items-center mt-4">
             {filteredLoans.map((loan) => (
               <LoanCard key={loan._id || loan.id} loan={loan} />
             ))}

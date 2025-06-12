@@ -4,54 +4,155 @@ import StatsCache from '../utils/StatsCache';
 import api from "./api";
 
 // Serviço responsável por operações de estatísticas do sistema
-const StatsService = {
+class StatsService {
   // Buscar estatísticas do usuário
   async getUserStats(userId, userType = "aluno") {
-    const response = await api.get(`/api/stats/user/${userId}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
-    });
-    const raw = response.data && response.data.data ? response.data.data : {};
+    try {
+      const token = localStorage.getItem("authToken");
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      };
 
-    // Normalização para garantir compatibilidade
-    const reservas = Array.isArray(raw.reservas)
-      ? raw.reservas.map(r => ({
-          ...r,
-          tituloLivro: r.tituloLivro || (r.livro && r.livro.title) || "Livro"
-        }))
-      : [];
+      const response = await api.get(`/api/users/${userId}/stats`, config);
+      const raw = response.data?.data || {};
 
-    return {
-      ...raw,
-      reservas,
-      livrosDisponiveis: raw.livrosDisponiveis ?? (raw.limiteConcorrente && raw.livrosEmprestados !== undefined ? raw.limiteConcorrente - raw.livrosEmprestados : 0),
-      livrosEmprestados: raw.livrosEmprestados ?? 0,
-    };
-  },
+      const reservas = Array.isArray(raw.reservas)
+        ? raw.reservas.map(r => ({
+            ...r,
+            tituloLivro: r.tituloLivro || (r.livro?.title) || "Livro"
+          }))
+        : [];
+
+      // Atualizar cache
+      StatsCache.set(userId, {
+        ...raw,
+        reservas,
+        livrosDisponiveis: raw.livrosDisponiveis ?? (
+          raw.limiteConcorrente && raw.livrosEmprestados !== undefined
+            ? raw.limiteConcorrente - raw.livrosEmprestados
+            : 0
+        ),
+        livrosEmprestados: raw.livrosEmprestados ?? 0,
+      });
+
+      return StatsCache.get(userId);
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error);
+      throw error;
+    }
+  }
+
+  // Buscar estatísticas da biblioteca
+  async getLibraryStats() {
+    try {
+      const response = await api.get('/library/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas da biblioteca:', error);
+      throw error;
+    }
+  }
+
+  // Buscar estatísticas de empréstimos
+  async getLoanStats() {
+    try {
+      const response = await api.get('/loans/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de empréstimos:', error);
+      throw error;
+    }
+  }
+
+  // Buscar estatísticas de reservas
+  async getReservationStats() {
+    try {
+      const response = await api.get('/reservations/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de reservas:', error);
+      throw error;
+    }
+  }
+
+  // Buscar estatísticas de multas
+  async getFineStats() {
+    try {
+      const response = await api.get('/fines/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de multas:', error);
+      throw error;
+    }
+  }
+
+  // Buscar estatísticas de usuários
+  async getUserTypeStats() {
+    try {
+      const response = await api.get('/users/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de usuários:', error);
+      throw error;
+    }
+  }
+
+  // Buscar estatísticas de livros
+  async getBookStats() {
+    try {
+      const response = await api.get('/books/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de livros:', error);
+      throw error;
+    }
+  }
+
+  // Buscar estatísticas de categorias
+  async getCategoryStats() {
+    try {
+      const response = await api.get('/categories/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de categorias:', error);
+      throw error;
+    }
+  }
 
   // Buscar estatísticas gerais do sistema (admin)
   async getSystemStats() {
-    return api.get('/api/stats/system');
-  },
+    try {
+      const response = await api.get('/system/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas do sistema:', error);
+      throw error;
+    }
+  }
 
-  // Buscar estatísticas de uso de um livro
-  async getBookStats(bookId) {
-    return api.get(`/api/stats/book/${bookId}`);
-  },
+  // Buscar estatísticas de uso de um livro específico
+  async getBookStatsById(bookId) {
+    try {
+      const response = await api.get(`/api/stats/book/${bookId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas do livro:', error);
+      throw error;
+    }
+  }
 
-  // Validar estrutura dos dados vindos da API - ATUALIZADO com cálculo correto
+  // Validar estrutura dos dados vindos da API
   validateStatsData(data, userType) {
-    // Determinar limite de empréstimos baseado no tipo de usuário
     const limiteConcorrente = userType === 'professor' ? 10 : 3;
-    
-    // Garantir que livrosEmprestados seja um número válido
     const livrosEmprestados = Math.max(0, parseInt(data.livrosEmprestados || 0));
-    
-    // CÁLCULO CORRETO: Livros disponíveis = Limite - Emprestados
     const livrosDisponiveis = Math.max(0, limiteConcorrente - livrosEmprestados);
 
     const baseStructure = {
       livrosEmprestados,
-      livrosDisponiveis, // VALOR CALCULADO CORRETAMENTE
+      livrosDisponiveis,
       limiteConcorrente,
       devolucoesPendentes: Math.max(0, parseInt(data.devolucoesPendentes || 0)),
       reservasAtivas: Math.max(0, parseInt(data.reservasAtivas || 0)),
@@ -62,9 +163,8 @@ const StatsService = {
       ...data
     };
 
-    // Validações específicas por tipo
     if (userType === 'professor') {
-      baseStructure.multasPendentes = 0; // Professores não têm multa
+      baseStructure.multasPendentes = 0;
       baseStructure.bibliografiasGerenciadas = Math.max(0, parseInt(data.bibliografiasGerenciadas || 0));
       baseStructure.turmasAtivas = Math.max(0, parseInt(data.turmasAtivas || 0));
       baseStructure.livrosSolicitados = Math.max(0, parseInt(data.livrosSolicitados || 0));
@@ -73,15 +173,14 @@ const StatsService = {
       baseStructure.pontosUsuario = Math.max(0, parseInt(data.pontosUsuario || 0));
     }
 
-    // Validação de consistência: empréstimos não pode exceder limite
     if (baseStructure.livrosEmprestados > baseStructure.limiteConcorrente) {
-      console.warn(`⚠️ Inconsistência detectada: ${baseStructure.livrosEmprestados} empréstimos excedem limite de ${baseStructure.limiteConcorrente}`);
+      console.warn(`⚠️ Inconsistência detectada: ${baseStructure.livrosEmprestados} empréstimos excedem o limite de ${baseStructure.limiteConcorrente}`);
       baseStructure.livrosEmprestados = baseStructure.limiteConcorrente;
       baseStructure.livrosDisponiveis = 0;
     }
 
     return baseStructure;
-  },
+  }
 
   // Atualizar uma estatística específica do usuário
   async updateStat(userId, statKey, newValue) {
@@ -97,13 +196,9 @@ const StatsService = {
     );
     StatsCache.remove(userId);
     return response.data;
-  },
-  // REMOVIDO: Funções de simulação de empréstimo e devolução
-  // Agora use as APIs reais:
-  // POST /api/emprestimos para criar empréstimos
-  // PUT /api/emprestimos/:id/devolucao para devoluções
+  }
 
-  // Buscar histórico de empréstimos
+  // Buscar histórico de empréstimos do usuário
   async getUserHistory(userId, userType, page = 1, limit = 10) {
     try {
       let endpoint = '';
@@ -114,6 +209,7 @@ const StatsService = {
       } else {
         throw new Error('Tipo de usuário inválido para histórico de empréstimos');
       }
+
       const response = await api.get(`${endpoint}?page=${page}&limit=${limit}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
@@ -125,22 +221,22 @@ const StatsService = {
       console.error('Erro ao buscar histórico:', error);
       throw error;
     }
-  },
+  }
 
-  // Calcular limites e disponibilidade para diferentes tipos de usuário
+  // Calcular limites e disponibilidade de empréstimos
   calculateUserLimits(userType, currentLoans = 0) {
     const limits = {
-      aluno: { 
-        max: 3, 
-        description: 'Alunos podem emprestar até 3 livros simultâneos' 
+      aluno: {
+        max: 3,
+        description: 'Alunos podem emprestar até 3 livros simultâneos'
       },
-      professor: { 
-        max: 10, 
-        description: 'Professores podem emprestar até 10 livros simultâneos' 
+      professor: {
+        max: 10,
+        description: 'Professores podem emprestar até 10 livros simultâneos'
       },
-      admin: { 
-        max: 20, 
-        description: 'Administradores têm limite especial' 
+      admin: {
+        max: 20,
+        description: 'Administradores têm limite especial'
       }
     };
 
@@ -158,14 +254,42 @@ const StatsService = {
       isNearLimit: percentage >= 80,
       isAtLimit: percentage >= 100
     };
-  },
+  }
 
-  // Buscar dados globais do dashboard admin
+  // Buscar dados do dashboard do administrador
   async getAdminDashboard() {
-    return api.get('/api/admin/dashboard', {
-      headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
-    });
-  },
-};
+    try {
+      const response = await api.get('/api/admin/dashboard', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar dashboard admin:', error);
+      throw error;
+    }
+  }
 
-export default StatsService;
+  // Atualizar estatísticas após operação
+  async updateStats(userId, operation) {
+    try {
+      // Limpar cache
+      StatsCache.remove(userId);
+      
+      // Buscar novas estatísticas
+      const newStats = await this.getUserStats(userId);
+      
+      // Disparar evento de atualização
+      window.dispatchEvent(new Event('atualizar-estatisticas'));
+      
+      return newStats;
+    } catch (error) {
+      console.error('Erro ao atualizar estatísticas:', error);
+      throw error;
+    }
+  }
+}
+
+const statsService = new StatsService();
+export default statsService;

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, ArrowLeft } from 'lucide-react';
 import * as ReservationService from '../services/ReservationService';
-import { retirarReserva } from '../services/ReservationService';
 import { toast } from 'react-toastify';
 
 export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn }) {
@@ -11,7 +10,6 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [cancelingId, setCancelingId] = useState(null);
-  const [retirandoId, setRetirandoId] = useState(null);
 
   useEffect(() => {
     async function fetchReservations() {
@@ -39,23 +37,6 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
       toast.error('Erro ao cancelar reserva: ' + (err.response?.data?.message || err.message));
     }
     setCancelingId(null);
-  };
-
-  const handleRetirarReserva = async (reservationId) => {
-    setRetirandoId(reservationId);
-    try {
-      await retirarReserva(reservationId);
-      const data = await ReservationService.getActiveReservations(user.id);
-      setReservations(data);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('atualizar-estatisticas'));
-      }
-      toast.success('Livro retirado com sucesso!');
-    } catch (err) {
-      toast.error('Erro ao retirar livro: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setRetirandoId(null);
-    }
   };
 
   const fetchReservationHistory = async () => {
@@ -92,21 +73,58 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
           ) : (
             <ul className="divide-y">
               {reservations.map((res) => (
-                <li key={res.id} className="py-2 flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva})</span>
+                <li key={res.id} className="py-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-medium">{res.tituloLivro}</span>
+                      <div className="text-sm text-gray-500">
+                        <p>Data da reserva: {new Date(res.dataReserva).toLocaleDateString()}</p>
+                        <p className="mt-1">
+                          Status: 
+                          <span className={`ml-1 px-2 py-0.5 rounded text-xs ${
+                            res.status === 'pendente' ? 'bg-yellow-100 text-yellow-800' :
+                            res.status === 'ativa' ? 'bg-green-100 text-green-800' :
+                            res.status === 'finalizada' ? 'bg-blue-100 text-blue-800' :
+                            res.status === 'cancelada' ? 'bg-red-100 text-red-800' :
+                            res.status === 'atendida' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {res.status.charAt(0).toUpperCase() + res.status.slice(1)}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {res.status === 'pendente' && (
+                        <button 
+                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors" 
+                          onClick={() => handleCancelReservation(res.id)} 
+                          disabled={cancelingId === res.id}
+                        >
+                          {cancelingId === res.id ? 'Cancelando...' : 'Cancelar'}
+                        </button>
+                      )}
+                      {res.status === 'ativa' && (
+                        <button 
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors" 
+                          onClick={() => handleCancelReservation(res.id)} 
+                          disabled={cancelingId === res.id}
+                        >
+                          {cancelingId === res.id ? 'Cancelando...' : 'Cancelar'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <button className="px-3 py-1 bg-green-600 text-white rounded text-sm mr-2" onClick={() => handleRetirarReserva(res.id)} disabled={retirandoId === res.id}>
-                    {retirandoId === res.id ? 'Retirando...' : 'Retirar'}
-                  </button>
-                  <button className="px-3 py-1 bg-red-600 text-white rounded text-sm" onClick={() => handleCancelReservation(res.id)} disabled={cancelingId === res.id}>
-                    {cancelingId === res.id ? 'Cancelando...' : 'Cancelar'}
-                  </button>
                 </li>
               ))}
             </ul>
           )}
-          <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded" onClick={fetchReservationHistory}>Ver histórico de reservas</button>
+          <button 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" 
+            onClick={fetchReservationHistory}
+          >
+            Ver histórico de reservas
+          </button>
           {showHistory && (
             <div className="mt-6">
               <h3 className="text-md font-semibold mb-2">Histórico de Reservas</h3>
@@ -117,15 +135,35 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
               ) : (
                 <ul className="divide-y">
                   {history.map((res) => (
-                    <li key={res.id} className="py-2 flex justify-between items-center">
-                      <div>
-                        <span className="font-medium">{res.tituloLivro}</span> <span className="text-sm text-gray-500">({res.dataReserva} - {res.status})</span>
+                    <li key={res.id} className="py-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-medium">{res.tituloLivro}</span>
+                          <div className="text-sm text-gray-500">
+                            <p>Data: {new Date(res.dataReserva).toLocaleDateString()}</p>
+                            <p className="mt-1">
+                              Status: 
+                              <span className={`ml-1 px-2 py-0.5 rounded text-xs ${
+                                res.status === 'finalizada' ? 'bg-green-100 text-green-800' :
+                                res.status === 'cancelada' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {res.status.charAt(0).toUpperCase() + res.status.slice(1)}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </li>
                   ))}
                 </ul>
               )}
-              <button className="mt-4 px-4 py-2 bg-gray-200 rounded" onClick={() => setShowHistory(false)}>Fechar histórico</button>
+              <button 
+                className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors" 
+                onClick={() => setShowHistory(false)}
+              >
+                Fechar histórico
+              </button>
             </div>
           )}
         </div>

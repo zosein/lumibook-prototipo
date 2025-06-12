@@ -3,21 +3,16 @@ import { normalizeFine } from '../utils/normalizeUtils';
 
 // Serviço responsável por operações relacionadas a multas de usuários
 const FineService = {
-  // Busca todas as multas de um usuário
+  // Busca multas do usuário
   async getUserFines(userId) {
-    const token = localStorage.getItem('authToken');
-    const res = await api.get(`/api/fines/user/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return Array.isArray(res.data) ? res.data.map(normalizeFine) : [];
+    const res = await api.get(`/api/fines/user/${userId}`);
+    return res.data;
   },
 
-  // Paga uma multa específica
+  // Paga uma multa
   async payFine(fineId) {
-    const token = localStorage.getItem('authToken');
-    return api.post(`/api/fines/${fineId}/pay`, {}, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await api.post(`/api/fines/${fineId}/pay`);
+    return res.data;
   },
 
   // Cria uma nova multa para um usuário (ex: atraso na devolução)
@@ -29,13 +24,10 @@ const FineService = {
     return normalizeFine(res.data);
   },
 
-  // Busca histórico de multas de um usuário
+  // Busca histórico de multas
   async getFineHistory(userId) {
-    const token = localStorage.getItem('authToken');
-    const res = await api.get(`/api/fines/history/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return Array.isArray(res.data) ? res.data.map(normalizeFine) : [];
+    const res = await api.get(`/api/fines/history/${userId}`);
+    return res.data;
   },
 };
 

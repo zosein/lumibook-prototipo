@@ -46,10 +46,9 @@ const useAdminStats = (user, isLoggedIn) => {
 
 			try {
 				const response = await StatsService.getAdminDashboard();
-				// Se a resposta vier com dados aninhados, desaninha para facilitar o uso no componente
 				const apiData = response.data;
 				if (apiData && apiData.dados) {
-					setStats({ ...apiData.dados, sucesso: apiData.sucesso });
+					setStats(apiData.dados);
 				} else {
 					setStats(apiData);
 				}
@@ -321,7 +320,12 @@ function DashboardSection({
 
 	// Atualiza dashboardStats quando stats muda externamente (ex: login)
 	useEffect(() => {
-		setDashboardStats(stats);
+		let statsObj = stats;
+		if (stats && stats.dados) {
+			statsObj = stats.dados;
+		}
+		console.log('Dashboard stats recebidos:', statsObj);
+		setDashboardStats(statsObj || {});
 	}, [stats]);
 
 	const handleDashboardRefresh = async () => {

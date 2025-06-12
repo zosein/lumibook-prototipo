@@ -5,7 +5,12 @@ const LOANS_ENDPOINT = "/api/loans";
 
 export const createLoan = async (loanData, token) => {
   try {
-    const res = await api.post(LOANS_ENDPOINT, loanData, {
+    const res = await api.post(LOANS_ENDPOINT, {
+      ...loanData,
+      status: 'ativo',
+      dataEmprestimo: new Date().toISOString(),
+      dataPrevistaDevolucao: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() // +15 dias
+    }, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return res.data;
@@ -14,26 +19,27 @@ export const createLoan = async (loanData, token) => {
   }
 };
 
-export const returnLoan = async (loanId, condition, token) => {
+export const returnLoan = async (loanId, token) => {
   try {
-    const res = await api.put(
-      `${LOANS_ENDPOINT}/${loanId}/devolucao`,
-      { condition }, // Adicionado estado do livro
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const res = await api.patch(`${LOANS_ENDPOINT}/${loanId}/return`, {
+      status: 'devolvido',
+      dataDevolucao: new Date().toISOString()
+    }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     return res.data;
   } catch (error) {
-    throw new Error(`Erro ao devolver empréstimo: ${error.response?.data?.message || error.message}`);
+    throw new Error(`Erro ao devolver livro: ${error.response?.data?.message || error.message}`);
   }
 };
 
 export const renewLoan = async (loanId, token) => {
   try {
-    const res = await api.post(
-      `${LOANS_ENDPOINT}/${loanId}/renovacao`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const res = await api.patch(`${LOANS_ENDPOINT}/${loanId}/renew`, {
+      dataPrevistaDevolucao: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() // +15 dias
+    }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     return res.data;
   } catch (error) {
     throw new Error(`Erro ao renovar empréstimo: ${error.response?.data?.message || error.message}`);
@@ -64,7 +70,7 @@ export const getLoanById = async (id, token) => {
 
 export const getLoanHistory = async (userId, token) => {
   try {
-    const res = await api.get(`/api/reservations/history`, {
+    const res = await api.get(`${LOANS_ENDPOINT}/history`, {
       params: { userId },
       headers: { Authorization: `Bearer ${token}` },
     });

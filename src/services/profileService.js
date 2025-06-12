@@ -14,4 +14,12 @@ export const updateProfile = async (dados, token) => {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
+};
+
+// Busca um usuário pelo ID
+export const getUserById = async (id, token) => {
+  const res = await api.get(`/api/users/${id}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
 }; 

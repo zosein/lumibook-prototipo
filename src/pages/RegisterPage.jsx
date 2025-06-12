@@ -72,7 +72,7 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
 		try {
 			// Chama a API de cadastro
 			const resposta = await UserService.register({
-				name: form.nome,
+				nome: form.nome,
 				email: form.email || "",
 				telefone: form.telefone,
 				papel: papelSeguro,
@@ -88,10 +88,10 @@ export default function RegisterPage({ setCurrentPage, onRegisterSuccess }) {
 				setErrors({ geral: msg });
 			} else {
 				setSuccess(
-					"Cadastro realizado com sucesso! Redirecionando para o login..."
+					"Cadastro realizado com sucesso! Redirecionando para o perfil..."
 				);
 				setTimeout(() => {
-					onRegisterSuccess();
+					setCurrentPage("profile");
 				}, 1500);
 			}
 		} catch (error) {

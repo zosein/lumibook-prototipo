@@ -12,6 +12,8 @@ import NavigationBar from './components/NavigationBar';
 import AdminProfilePage from './pages/AdminProfilePage';
 import DebugInfo from './components/DebugInfo';
 import { getProfile } from './services/profileService';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function DetailsPageWrapper({ setCurrentPage, navigateToDetails }) {
   const { bookId } = useParams();
@@ -181,6 +183,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      <ToastContainer position="top-right" autoClose={3000} />
       {/* DEBUG: Informações de debug */}
       <DebugInfo isLoggedIn={isLoggedIn} user={user} currentPage={currentPage} />
       

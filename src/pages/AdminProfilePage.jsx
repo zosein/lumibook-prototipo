@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, BarChart3, Plus, Edit3, Activity, RefreshCw } from 'lucide-react';
+import { FileText, BarChart3, Plus, Edit3, Activity, RefreshCw, Loader2 } from 'lucide-react';
 import AdminProfile from "../components/AdminProfile";
 import { registerBibliotecario } from '../services/UserService';
 import CatalogService from '../services/CatalogService';
 import React from 'react';
 import { useCatalogacao } from '../hooks/useCatalogacao';
 import { buscarLivroPorISBN } from '../utils/buscaLivroPorISBN';
+import StatsService from '../services/StatsService';
+import { Navigate } from 'react-router-dom';
 
 // Array global para registrar req/res
 window._frontReqResLog = window._frontReqResLog || [];
@@ -16,18 +18,28 @@ export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onL
   const [bibForm, setBibForm] = useState({ nome: '', email: '', senha: '' });
   const [bibMsg, setBibMsg] = useState('');
   const [bibLoading, setBibLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && user._id) {
+          const stats = await StatsService.getUserStats(user._id);
+          console.log('Estatísticas carregadas:', stats);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+      }
+    };
+
+    fetchUserStats();
+  }, []);
+
   // Protege a rota: só permite acesso se for admin autenticado
   if (!isLoggedIn || !user || (user.papel !== 'admin' && user.papel !== 'bibliotecario')) {
-    // Redireciona para login caso não autorizado
-    setTimeout(() => setCurrentPage('login'), 0);
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-gray-600">Redirecionando para login...</p>
-        </div>
-      </div>
-    );
+    return <Navigate to="/login" />;
   }
+
   // Prepara dados do admin para o componente principal
   const adminData = {
     nome: user.nome || user.usuario || "ADMINISTRADOR",
@@ -144,11 +156,10 @@ export function DashboardContent() {
 }
 
 // Formulário de catalogação de obras
-export function CatalogacaoContent() {
+export function CatalogacaoContent({ setCurrentPage }) {
   const {
     formData,
     setFormData,
-    preencherPorISBN,
     capaUrl,
     limparFormulario,
   } = useCatalogacao();
@@ -159,6 +170,9 @@ export function CatalogacaoContent() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const inputRef = useRef();
   const [categorias, setCategorias] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     CatalogService.getCategoriasFixas().then(setCategorias);
@@ -266,9 +280,70 @@ export function CatalogacaoContent() {
   };
 
   // Submissão do formulário (integração futura com API)
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Catalogar nova obra:', formData);
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Validar campos obrigatórios
+      if (!formData.nome || !formData.email || !formData.password) {
+        throw new Error('Por favor, preencha todos os campos obrigatórios');
+      }
+
+      // Validar formato do email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        throw new Error('Por favor, insira um email válido');
+      }
+
+      // Validar senha
+      if (formData.password.length < 6) {
+        throw new Error('A senha deve ter pelo menos 6 caracteres');
+      }
+
+      // Criar payload com papel fixo como 'aluno' e adicionar matricula
+      const userData = {
+        nome: formData.nome,
+        email: formData.email,
+        password: formData.password,
+        papel: 'aluno',
+        matricula: formData.matricula || ''
+      };
+
+      const response = await fetch('http://localhost:3000/api/usuarios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao criar usuário');
+      }
+
+      const data = await response.json();
+      console.log('Usuário criado:', data);
+      setSuccess('Usuário criado com sucesso!');
+      setFormData({
+        nome: '',
+        email: '',
+        password: '',
+        papel: 'aluno',
+        matricula: ''
+      });
+
+      // Redirecionar para a tela de perfil
+      setTimeout(() => {
+        setCurrentPage('profile');
+      }, 1500);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -343,60 +418,61 @@ export function CatalogacaoContent() {
                 <input type="text" value={formData.editora} onChange={e => setFormData(prev => ({ ...prev, editora: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Nome da editora" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Ano*</label>
-                <input type="number" required min="1800" max={new Date().getFullYear()} value={formData.ano} onChange={e => setFormData(prev => ({ ...prev, ano: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Ano de publicação" />
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Ano</label>
+                <input type="text" value={formData.ano} onChange={e => setFormData(prev => ({ ...prev, ano: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Ano de publicação" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Categoria*</label>
-                <select required value={formData.categoria} onChange={e => setFormData(prev => ({ ...prev, categoria: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200">
-                  <option value="">Selecione a categoria</option>
-                  {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Idioma</label>
+                <input type="text" value={formData.idioma} onChange={e => setFormData(prev => ({ ...prev, idioma: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Idioma original" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Páginas</label>
+                <input type="text" value={formData.paginas} onChange={e => setFormData(prev => ({ ...prev, paginas: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Número de páginas" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Resumo</label>
+                <textarea value={formData.resumo} onChange={e => setFormData(prev => ({ ...prev, resumo: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Resumo da obra" rows="3" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Categoria</label>
+                <select value={formData.categoria} onChange={e => setFormData(prev => ({ ...prev, categoria: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200">
+                  <option value="">Selecione uma categoria</option>
+                  {categorias.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                  ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo*</label>
-                <input type="text" required value={formData.tipo} onChange={e => setFormData(prev => ({ ...prev, tipo: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Tipo de obra" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Localização*</label>
-                <input type="text" required value={formData.localizacao} onChange={e => setFormData(prev => ({ ...prev, localizacao: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Localização na biblioteca" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Estoque*</label>
-                <input type="number" required min="1" value={formData.exemplares} onChange={e => setFormData(prev => ({ ...prev, exemplares: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Quantidade de exemplares" />
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Edição</label>
+                <input type="text" value={formData.edicao} onChange={e => setFormData(prev => ({ ...prev, edicao: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Número da edição" />
               </div>
             </div>
-            {/* Campos avançados colapsáveis */}
-            <details className="mt-4">
-              <summary className="cursor-pointer text-blue-700 font-medium mb-2">Campos avançados</summary>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Edição</label>
-                  <input type="text" value={formData.edicao || ''} onChange={e => setFormData(prev => ({ ...prev, edicao: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Edição" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Idioma</label>
-                  <input type="text" value={formData.idioma} onChange={e => setFormData(prev => ({ ...prev, idioma: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Idioma" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Número de Páginas</label>
-                  <input type="number" min="1" value={formData.paginas} onChange={e => setFormData(prev => ({ ...prev, paginas: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Número de páginas" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Resumo</label>
-                  <textarea rows="4" value={formData.resumo} onChange={e => setFormData(prev => ({ ...prev, resumo: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200 resize-none" placeholder="Breve descrição da obra..." />
-                </div>
+            {/* Botão de submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Cadastrando...
+                </>
+              ) : (
+                "Cadastrar obra"
+              )}
+            </button>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-center text-sm animate-pulse">
+                {error}
               </div>
-            </details>
-            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
-              <button type="submit" className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
-                <Plus size={18} />
-                Catalogar Obra
-              </button>
-              <button type="button" className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]" onClick={handleLimparFormulario}>
-                Limpar Formulário
-              </button>
-            </div>
+            )}
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-600 p-3 rounded-lg text-center text-sm flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                {success}
+              </div>
+            )}
           </form>
         </div>
       </div>
