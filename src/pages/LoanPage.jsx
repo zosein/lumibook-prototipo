@@ -9,7 +9,6 @@ export default function LoanPage({ setCurrentPage }) {
   const [returningId, setReturningId] = useState(null);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef();
 
   useEffect(() => {
@@ -34,25 +33,45 @@ export default function LoanPage({ setCurrentPage }) {
     setReturningId(loanId);
     try {
       const token = localStorage.getItem('authToken');
-      await LoanService.returnLoan(loanId, token);
-      fetchLoans();
-      window.dispatchEvent(new Event('atualizar-estatisticas'));
+      const res = await LoanService.returnLoan(loanId, undefined, token);
+      if (res && res.success) {
+        alert('Devolução realizada com sucesso!');
+        fetchLoans();
+        window.dispatchEvent(new Event('atualizar-estatisticas'));
+      } else if (res && res.message) {
+        alert(res.message);
+        fetchLoans();
+      } else {
+        alert('Erro ao devolver empréstimo.');
+        fetchLoans();
+      }
     } catch (err) {
-      setError('Erro ao devolver empréstimo.');
+      alert('Erro ao devolver empréstimo: ' + (err.response?.data?.message || err.message));
+      fetchLoans();
     } finally {
       setReturningId(null);
     }
   };
 
   const handleRenew = async (loanId) => {
-  try {
-    const token = localStorage.getItem('authToken');
-    await LoanService.renewLoan(loanId, token);
-    fetchLoans();
-  } catch (err) {
-    setError(err.message);
-  }
-};
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await LoanService.renewLoan(loanId, token);
+      if (res && res.success) {
+        alert('Renovação realizada com sucesso!');
+        fetchLoans();
+      } else if (res && res.message) {
+        alert(res.message);
+        fetchLoans();
+      } else {
+        alert('Erro ao renovar empréstimo.');
+        fetchLoans();
+      }
+    } catch (err) {
+      alert('Erro ao renovar empréstimo: ' + (err.response?.data?.message || err.message));
+      fetchLoans();
+    }
+  };
 
   // Filtro de pesquisa
   const filteredLoans = loans.filter(loan => {
@@ -90,39 +109,39 @@ export default function LoanPage({ setCurrentPage }) {
   function LoanCard({ loan }) {
     const { diasRestantes, multa } = calcularDiasEMulta(loan.dataPrevistaDevolucao);
     return (
-      <div className="bg-white rounded-xl shadow border p-4 flex flex-col sm:flex-row gap-4 items-center w-full max-w-xl mx-auto">
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row gap-6 items-center w-full max-w-2xl mx-auto mb-6 transition hover:shadow-md">
         <img
           src={loan.capa || `https://covers.openlibrary.org/b/isbn/${loan.isbn}-L.jpg`}
           alt={loan.tituloLivro || loan.titulo || 'Livro'}
-          className="w-20 h-28 object-cover rounded border"
-          onError={e => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=3B82F6&color=fff&size=128'; }}
+          className="w-20 h-28 object-cover rounded-2xl border border-gray-200 bg-gray-50"
+          onError={e => { e.target.src = 'https://ui-avatars.com/api/?name=Livro&background=E5E7EB&color=374151&size=128'; }}
         />
-        <div className="flex-1 flex flex-col justify-between w-full">
+        <div className="flex-1 flex flex-col justify-between w-full gap-2">
           <div>
-            <h3 className="text-base font-bold text-blue-900 mb-1">{loan.tituloLivro || loan.titulo || 'Livro'}</h3>
-            <p className="text-xs text-gray-600 mb-1">{loan.autor}</p>
-            <p className="text-xs text-gray-500">Empréstimo: {loan.dataEmprestimo ? new Date(loan.dataEmprestimo).toLocaleDateString() : '-'}</p>
-            <p className="text-xs text-gray-500">Devolução: {loan.dataPrevistaDevolucao ? new Date(loan.dataPrevistaDevolucao).toLocaleDateString() : '-'}</p>
+            <h3 className="text-lg font-semibold text-gray-800 mb-1 truncate">{loan.tituloLivro || loan.titulo || 'Livro'}</h3>
+            <p className="text-xs text-gray-500 mb-1">{loan.autor}</p>
+            <p className="text-xs text-gray-400">Empréstimo: {loan.dataEmprestimo ? new Date(loan.dataEmprestimo).toLocaleDateString() : '-'}</p>
+            <p className="text-xs text-gray-400">Devolução: {loan.dataPrevistaDevolucao ? new Date(loan.dataPrevistaDevolucao).toLocaleDateString() : '-'}</p>
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
-              ${diasRestantes < 0 ? 'bg-red-100 text-red-800' : diasRestantes === 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+          <div className="flex items-center gap-3 mt-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 ${diasRestantes < 0 ? 'bg-red-50 text-red-500' : diasRestantes === 0 ? 'bg-yellow-50 text-yellow-500' : ''}`}>
               {diasRestantes < 0 ? 'Atrasado' : diasRestantes === 0 ? 'Devolve hoje' : 'Em dia'}
             </span>
             {multa > 0 && (
-              <span className="ml-2 text-xs text-red-600 font-semibold">Multa: R$ {multa.toFixed(2)}</span>
+              <span className="ml-2 text-xs text-red-400 font-medium">Multa: R$ {multa.toFixed(2)}</span>
             )}
             {loan.renovacoes < 2 && (
-              <button className='ml-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition text-xs' onClick={() => handleRenew(loan._id || loan.id)}>
-                Renovar
+              <button className="ml-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition text-xs shadow-none border-none" onClick={() => handleRenew(loan._id || loan.id)} title="Renovar">
+                <Undo2 size={16} />
               </button>
             )}
             <button
-              className="ml-auto px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-xs"
+              className="ml-auto flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition text-xs shadow-none border-none"
               onClick={() => handleReturn(loan._id || loan.id)}
               disabled={returningId === (loan._id || loan.id)}
+              title="Devolver"
             >
-              {returningId === (loan._id || loan.id) ? 'Devolvendo...' : 'Devolver'}
+              <ArrowLeft size={16} />
             </button>
           </div>
         </div>
@@ -132,82 +151,77 @@ export default function LoanPage({ setCurrentPage }) {
 
   // Foco no input ao abrir pesquisa
   useEffect(() => {
-    if (searchOpen && searchInputRef.current) {
+    if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  }, [searchOpen]);
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-900 via-blue-700 to-blue-100">
+    <div className="min-h-screen flex flex-col bg-white">
       {/* Resumo fixo no topo */}
-      <header className="w-full bg-gradient-to-r from-blue-800 to-blue-600 flex flex-col items-center gap-2 px-4 py-6 shadow-lg sticky top-0 z-20">
-        <div className="flex items-center w-full max-w-2xl">
-          <button onClick={() => setCurrentPage('perfil')} className="text-white p-2 rounded hover:bg-blue-500 transition-all duration-200 mr-2">
+      <header className="w-full bg-white flex flex-col items-center gap-2 px-4 py-6 shadow-none border-b border-gray-100 sticky top-0 z-20">
+        <div className="flex items-center w-full max-w-3xl mx-auto">
+          <button onClick={() => setCurrentPage('perfil')} className="text-gray-400 p-2 rounded-lg hover:bg-gray-100 transition-all duration-200 mr-2">
             <ArrowLeft size={22} />
           </button>
           <div className="flex-1 flex items-center justify-center gap-3">
-            <BookOpen size={36} className="text-yellow-300 drop-shadow" />
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">Meus Empréstimos</h1>
+            <BookOpen size={32} className="text-blue-400" />
+            <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Meus Empréstimos</h1>
           </div>
         </div>
-        <div className="flex gap-6 mt-4">
-          <div className="bg-white/80 rounded-lg px-6 py-3 flex flex-col items-center shadow-lg">
-            <BookOpen size={28} className="text-blue-700 mb-1" />
-            <span className="text-xs text-gray-500">Total</span>
-            <span className="text-lg font-bold text-blue-900">{total}</span>
+        <div className="flex gap-4 mt-4 justify-center w-full max-w-3xl">
+          <div className="bg-gray-50 rounded-2xl px-6 py-3 flex flex-col items-center shadow-none border border-gray-100">
+            <BookOpen size={24} className="text-blue-400 mb-1" />
+            <span className="text-xs text-gray-400">Total</span>
+            <span className="text-lg font-semibold text-gray-700">{total}</span>
           </div>
-          <div className="bg-white/80 rounded-lg px-6 py-3 flex flex-col items-center shadow-lg">
-            <AlertTriangle size={28} className="text-red-600 mb-1" />
-            <span className="text-xs text-gray-500">Atrasados</span>
-            <span className="text-lg font-bold text-red-600">{atrasados}</span>
+          <div className="bg-gray-50 rounded-2xl px-6 py-3 flex flex-col items-center shadow-none border border-gray-100">
+            <AlertTriangle size={24} className="text-red-400 mb-1" />
+            <span className="text-xs text-gray-400">Atrasados</span>
+            <span className="text-lg font-semibold text-red-400">{atrasados}</span>
           </div>
-          <div className="bg-white/80 rounded-lg px-6 py-3 flex flex-col items-center shadow-lg">
-            <Clock size={28} className="text-yellow-600 mb-1" />
-            <span className="text-xs text-gray-500">Devolve hoje</span>
-            <span className="text-lg font-bold text-yellow-600">{devolveHoje}</span>
+          <div className="bg-gray-50 rounded-2xl px-6 py-3 flex flex-col items-center shadow-none border border-gray-100">
+            <Clock size={24} className="text-yellow-400 mb-1" />
+            <span className="text-xs text-gray-400">Devolve hoje</span>
+            <span className="text-lg font-semibold text-yellow-400">{devolveHoje}</span>
           </div>
         </div>
-        {/* Barra de pesquisa minimalista */}
-        <div className="relative mt-4 w-full max-w-2xl flex justify-end">
-          <button
-            className={`bg-white/80 rounded-full p-2 shadow-lg border border-blue-200 transition-all duration-200 ${searchOpen ? 'ring-2 ring-blue-400' : ''}`}
-            onClick={() => setSearchOpen(o => !o)}
-            aria-label="Buscar empréstimo"
-          >
-            <SearchIcon size={22} className="text-blue-700" />
-          </button>
-          {searchOpen && (
+        {/* Barra de pesquisa minimalista integrada */}
+        <div className="relative mt-6 w-full max-w-3xl flex justify-end mx-auto">
+          <div className="flex items-center w-full bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 shadow-none">
+            <SearchIcon size={20} className="text-gray-400 mr-2" />
             <input
               ref={searchInputRef}
               type="text"
-              className="absolute right-0 top-0 w-64 p-2 rounded-lg border border-blue-300 shadow focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-base bg-white z-10"
+              className="flex-1 bg-transparent outline-none border-none text-base text-gray-700 placeholder-gray-400"
               placeholder="Buscar nos meus empréstimos..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
             />
-          )}
+          </div>
         </div>
       </header>
-      <main className="flex-1 px-0 py-8 w-full">
+      <main className="flex-1 px-2 py-10 w-full flex flex-col items-center justify-center bg-white">
         {loading ? (
-          <div className="text-center text-blue-700 mt-16">Carregando empréstimos...</div>
+          <div className="text-center text-blue-400 mt-16 text-lg font-medium">Carregando empréstimos...</div>
         ) : error ? (
-          <div className="text-red-600 mb-2 text-center mt-16">{error}</div>
+          <div className="text-red-400 mb-2 text-center mt-16 text-base">{error}</div>
         ) : filteredLoans.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <img src="https://cdn.jsdelivr.net/gh/edent/SuperTinyIcons/images/svg/book.svg" alt="Estante vazia" className="w-24 h-24 mb-4 opacity-60" />
-            <div className="text-lg text-gray-700 mb-2">Sua estante está vazia!</div>
-            <div className="text-gray-500 mb-4">Que tal pegar um livro emprestado?</div>
+          <div className="flex flex-col items-center justify-center py-20 w-full">
+            <div className="w-24 h-24 mb-4 flex items-center justify-center bg-gray-50 rounded-full">
+              <BookOpen size={48} className="text-blue-200 opacity-60" />
+            </div>
+            <div className="text-lg text-gray-600 mb-2 text-center font-medium">Sua estante está vazia!</div>
+            <div className="text-sm text-gray-400 mb-6 text-center">Que tal pegar um livro emprestado?</div>
             <button
-              className="mt-2 px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
-              onClick={() => setCurrentPage('resultados')}
+              className="px-6 py-2 bg-blue-100 hover:bg-blue-200 text-blue-600 font-medium rounded-xl shadow-none border-none transition-all"
+              onClick={() => setCurrentPage('home')}
             >
-              Explorar Catálogo
+              <BookOpen size={18} className="inline mr-2" />Explorar Catálogo
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pb-8">
+          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pb-8 justify-items-center">
             {filteredLoans.map((loan) => (
               <LoanCard key={loan._id || loan.id} loan={loan} />
             ))}

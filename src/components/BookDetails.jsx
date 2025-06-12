@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BookOpen, Info } from 'lucide-react';
 import CatalogService from '../services/CatalogService';
 import * as ReservationService from '../services/ReservationService';
+import * as LoanService from '../services/LoanService';
 
 export default function BookDetails({ setCurrentPage, bookId, navigateToDetails }) {
   const [livro, setLivro] = useState(null);
@@ -38,17 +39,68 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
     fetchBookDetails();
   }, [bookId]);
 
+  // Função para atualizar detalhes do livro após operação
+  const atualizarLivro = async () => {
+    try {
+      const bookData = await CatalogService.getBookById(bookId);
+      setLivro(bookData);
+    } catch {}
+  };
+
+  // Função de empréstimo
+  const handleLoan = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const user = JSON.parse(localStorage.getItem('userData'));
+      const payload = {
+        usuarioId: user.id,
+        livroId: livro.id,
+        tituloLivro: livro.titulo
+      };
+      const res = await LoanService.createLoan(payload, token);
+      if (res.success) {
+        alert('Empréstimo realizado com sucesso!');
+        setLivro(res.data.livro); // Atualiza estado do livro com resposta da API
+        if (typeof setCurrentPage === 'function') setCurrentPage('emprestimos');
+      } else {
+        alert(res.message || 'Erro ao realizar empréstimo.');
+      }
+    } catch (err) {
+      if (err.message && err.message.includes('Não há exemplares disponíveis')) {
+        alert('Não há exemplares disponíveis. Você pode reservar este livro.');
+        atualizarLivro();
+      } else {
+        alert('Erro ao realizar empréstimo: ' + (err.response?.data?.message || err.message));
+      }
+    }
+  };
+
+  // Função de reserva (ajustada para tratar resposta da API)
   const handleReserve = async () => {
     try {
       const token = localStorage.getItem('authToken');
       const user = JSON.parse(localStorage.getItem('userData'));
-      await ReservationService.createReservation({ usuarioId: user.id, livroId: livro.id }, token);
-      alert('Reserva realizada com sucesso!');
-      if (typeof setCurrentPage === 'function') {
-        setCurrentPage('perfil');
+      const payload = { usuarioId: user.id, livroId: livro.id };
+      const res = await ReservationService.createReservation(payload, token);
+      if (res && res.success) {
+        alert('Reserva realizada com sucesso!');
+        atualizarLivro();
+        if (typeof setCurrentPage === 'function') setCurrentPage('perfil');
+      } else if (res && res.error) {
+        alert(res.error);
+        atualizarLivro();
+      } else {
+        alert('Erro ao reservar livro.');
+        atualizarLivro();
       }
     } catch (err) {
-      alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
+      if (err.message && err.message.includes('exemplares disponíveis')) {
+        alert('Ainda há exemplares disponíveis para empréstimo. Não é possível reservar.');
+        atualizarLivro();
+      } else {
+        alert('Erro ao reservar livro: ' + (err.response?.data?.message || err.message));
+        atualizarLivro();
+      }
     }
   };
 
@@ -157,11 +209,16 @@ export default function BookDetails({ setCurrentPage, bookId, navigateToDetails 
               </div>
             </div>
             <div className="flex gap-2">
-              {livro.disponivel && (
-                <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={handleReserve}>Reservar</button>
+              {/* Botão de Empréstimo: só aparece se houver exemplares disponíveis */}
+              {Number(livro.exemplares?.disponiveis) > 0 && (
+                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition" onClick={handleLoan}>Emprestar</button>
+              )}
+              {/* Botão de Reserva: só aparece se não houver exemplares disponíveis */}
+              {Number(livro.exemplares?.disponiveis) === 0 && (
+                <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition" onClick={handleReserve}>Reservar (entrar na fila)</button>
               )}
               {livro.tipo === "E-book" && (
-                <button className="px-4 py-2 bg-blue-600 text-white rounded">Download (E-book)</button>
+                <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded">Download (E-book)</button>
               )}
               <button className="px-4 py-2 border border-gray-300 rounded flex items-center gap-1">
                 <Info size={16} /> Solicitar ajuda

@@ -48,54 +48,89 @@ export function normalizeBook(book) {
 
 	// Normalização de exemplares
 	let exemplares = { disponiveis: 0, total: 0 };
-	if (Array.isArray(book.exemplares)) {
+	if (typeof book.stock === 'number') {
+		exemplares.total = book.stock;
+		exemplares.disponiveis = book.stock;
+	} else if (Array.isArray(book.exemplares) && book.exemplares.length > 0) {
 		const valor = book.exemplares[0];
-		// Se for array de objetos (ex: [{codigo, status}])
 		if (typeof valor === 'object' && valor !== null) {
 			exemplares.total = book.exemplares.length;
-			exemplares.disponiveis = book.exemplares.filter(e => e.status === 'disponivel' || e.status === 'available').length;
+			exemplares.disponiveis = book.exemplares.filter(e => {
+				const status = (e.status || '').toLowerCase();
+				return status === 'disponivel' || status === 'disponível' || status === 'available';
+			}).length;
 		} else {
-			// Se for array e o primeiro item for número ou string numérica, usar como total/disponíveis
 			const num = typeof valor === 'string' ? parseInt(valor, 10) : valor;
 			if (!isNaN(num)) {
 				exemplares.total = num;
-				exemplares.disponiveis = (book.stock !== undefined ? book.stock : num);
+				exemplares.disponiveis = num;
 			} else {
 				exemplares.total = book.exemplares.length;
-				exemplares.disponiveis = (book.stock !== undefined ? book.stock : 0);
+				exemplares.disponiveis = 0;
 			}
 		}
 	} else if (typeof book.exemplares === 'number') {
 		exemplares.total = book.exemplares;
-		exemplares.disponiveis = (book.stock !== undefined ? book.stock : book.exemplares);
+		exemplares.disponiveis = book.exemplares;
 	} else if (typeof book.exemplares === 'object' && book.exemplares !== null) {
 		exemplares.total = book.exemplares.total ?? book.exemplares.disponiveis ?? 0;
 		exemplares.disponiveis = book.exemplares.disponiveis ?? 0;
 	} else {
-		exemplares.total = 0;
-		exemplares.disponiveis = 0;
+		exemplares.total = typeof book.stock === 'number' ? book.stock : 0;
+		exemplares.disponiveis = typeof book.stock === 'number' ? book.stock : 0;
+	}
+
+	// Normalização de autor
+	let autor = '';
+	if (book.autor) {
+		autor = book.autor;
+	} else if (Array.isArray(book.authors) && book.authors.length > 0) {
+		// Se vier array de IDs, mostra 'Autor desconhecido'
+		if (typeof book.authors[0] === 'string' && book.authors[0].length === 24) {
+			autor = 'Autor desconhecido';
+		} else {
+			autor = book.authors[0];
+		}
+	} else if (Array.isArray(book.autores) && book.autores.length > 0) {
+		autor = book.autores[0];
+	} else {
+		autor = 'Autor desconhecido';
+	}
+
+	// Normalização de autores (array)
+	let autores = [];
+	if (Array.isArray(book.autores) && book.autores.length > 0) {
+		autores = book.autores;
+	} else if (Array.isArray(book.authors) && book.authors.length > 0) {
+		// Se vier array de IDs, retorna array vazio
+		if (typeof book.authors[0] === 'string' && book.authors[0].length === 24) {
+			autores = [];
+		} else {
+			autores = book.authors;
+		}
+	} else if (book.autor) {
+		autores = [book.autor];
 	}
 
 	return {
 		id: book.id || book._id || book.livroId,
 		titulo: book.titulo || book.title,
-		autores: Array.isArray(book.autores) ? book.autores : (book.authors ? book.authors : (book.autor ? [book.autor] : [])),
-		autor: book.autor || (Array.isArray(book.authors) ? book.authors[0] : ''),
+		autores,
+		autor,
 		isbn: book.isbn,
 		ano: book.ano,
 		tipo: tipoMap[book.tipo] || book.tipo,
 		categoria: book.categoria,
-		editora: book.editora,
-		exemplares,
+		editora: book.editora || 'Não informado',
 		stock: book.stock,
 		disponivel: book.disponivel,
 		resumo: book.resumo,
 		capa: book.capa,
-		edicao: book.edicao || book.edition,
+		edicao: book.edicao || book.edition || '1ª edição',
 		paginas: book.paginas,
 		localizacao: book.localizacao || book.location,
 		idioma: book.idioma || book.language,
-		// Campos extras do payload
+		exemplares,
 		...book
 	};
 }

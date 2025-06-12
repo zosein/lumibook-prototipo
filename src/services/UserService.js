@@ -108,3 +108,9 @@ export const getAllUsers = async () => {
 	const res = await api.get("/api/users");
 	return Array.isArray(res.data) ? res.data.map(normalizeUser) : [];
 };
+
+// Atualiza status do usuário (ativa/desativa)
+export const updateUserStatus = async (id, statusConta) => {
+	const res = await api.patch(`/api/users/${id}`, { statusConta });
+	return res.data;
+};

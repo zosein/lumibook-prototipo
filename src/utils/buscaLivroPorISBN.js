@@ -1,4 +1,4 @@
-import translate from 'translate';
+              import translate from 'translate';
 
 // Função auxiliar para buscar resumo no Google Books
 async function buscarResumoGoogleBooks(isbn, precisaResumo = true, precisaEdicao = true) {
@@ -68,21 +68,13 @@ async function buscarLivroOpenLibrary(isbn) {
     resumo = 'Resumo não disponível automaticamente. Preencha manualmente se desejar.';
   }
 
-  // Pega só o primeiro parágrafo ou frase
-  if (resumo) {
-    const splitParagrafo = resumo.split(/\n|\r|\./).map(s => s.trim()).filter(Boolean);
-    resumo = splitParagrafo[0] || resumo;
-  }
-
-  // Limitar o resumo a 250 caracteres
-  if (resumo && resumo.length > 250) resumo = resumo.slice(0, 250) + '...';
+  // NÃO cortar o resumo no primeiro parágrafo/frase e NÃO limitar o tamanho
 
   // Traduzir para português se não estiver em português
   let resumoTraduzido = resumo;
   if (resumo && idioma !== 'Português') {
     try {
       resumoTraduzido = await translate(resumo, { to: 'pt' });
-      if (resumoTraduzido.length > 250) resumoTraduzido = resumoTraduzido.slice(0, 250) + '...';
     } catch (e) {
       resumoTraduzido = resumo;
     }
@@ -95,17 +87,10 @@ async function buscarLivroOpenLibrary(isbn) {
     if (matchAno) ano = matchAno[1];
   }
 
-  // Categoria: usar o gênero mais frequente do OpenLibrary, se disponível
+  // Categoria: usar o primeiro subject do OpenLibrary, se disponível
   let categoria = '';
-  if (livro.genres && Array.isArray(livro.genres) && livro.genres.length > 0) {
-    // Contar ocorrências de cada gênero
-    const freq = {};
-    livro.genres.forEach(g => {
-      if (typeof g === 'string') freq[g] = (freq[g] || 0) + 1;
-    });
-    // Pega o gênero mais frequente
-    const maisFrequente = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
-    if (maisFrequente) categoria = maisFrequente[0];
+  if (livro.subjects && Array.isArray(livro.subjects) && livro.subjects.length > 0) {
+    categoria = livro.subjects[0].name;
   }
   // Traduzir categoria para português se necessário
   let categoriaTraduzida = categoria;
@@ -131,9 +116,34 @@ async function buscarLivroOpenLibrary(isbn) {
   };
 }
 
+// Função para buscar dados do Google Books (completo)
+async function buscarLivroGoogleBooks(isbn) {
+  const isbnLimpo = isbn.replace(/[-\s]/g, '');
+  const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbnLimpo}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!data.items || !data.items[0]) return null;
+  const info = data.items[0].volumeInfo;
+  return {
+    titulo: info.title || '',
+    autor: Array.isArray(info.authors) ? info.authors[0] : (info.authors || ''),
+    editora: info.publisher || '',
+    ano: info.publishedDate ? (info.publishedDate.match(/\d{4}/)?.[0] || '') : '',
+    idioma: info.language === 'pt' ? 'Português' : (info.language || ''),
+    paginas: info.pageCount || '',
+    resumo: info.description || '',
+    categoria: Array.isArray(info.categories) ? info.categories[0] : (info.categories || ''),
+    capa: info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || '',
+    edicao: '',
+  };
+}
+
 // Função principal: busca por ISBN com fallback
 export async function buscarLivroPorISBN(isbn) {
   // Primeiro tenta OpenLibrary (com fallback Google Books já embutido)
-  const dados = await buscarLivroOpenLibrary(isbn);
+  let dados = await buscarLivroOpenLibrary(isbn);
+  if (!dados) {
+    dados = await buscarLivroGoogleBooks(isbn);
+  }
   return dados;
 } 

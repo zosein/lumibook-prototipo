@@ -23,16 +23,9 @@ const CatalogService = {
 
 	// Catalogar nova obra
 	async catalogarObra(dadosObra, adminId) {
-		const payload = {
-			title: dadosObra.titulo,
-			authors: dadosObra.autores,
-			isbn: dadosObra.isbn,
-			ano: dadosObra.ano,
-			categoria: dadosObra.categoria
-		};
 		const response = await api.post(
 			"/api/books",
-			payload,
+			dadosObra,
 			{ headers: this.getHeaders() }
 		);
 		return { success: true, data: response.data, message: "Obra catalogada com sucesso!" };
@@ -148,7 +141,9 @@ const CatalogService = {
 	// Buscar detalhes de um livro
 	async getBookById(id) {
 		const res = await api.get(`/api/books/${id}`);
-		return res.data;
+		// Normaliza os campos para o padrão esperado pelo frontend
+		const { normalizeBook } = await import('../utils/normalizeUtils');
+		return normalizeBook(res.data);
 	},
 
 	// Buscar livros relacionados
@@ -262,6 +257,27 @@ const CatalogService = {
 	async getBookByISBN(isbn) {
 		const res = await api.get(`/api/books/isbn/${isbn}`);
 		return res.data;
+	},
+
+	// Buscar autores da API (para autocomplete)
+	async getAutores(termo = "") {
+		const response = await api.get(`/api/authors/search?query=${encodeURIComponent(termo)}`, { headers: this.getHeaders(false) });
+		// Espera que a API retorne [{_id, nome}] ou [{id, nome}]
+		return Array.isArray(response.data)
+			? response.data.map(a => ({ label: a.nome, value: a._id || a.id }))
+			: [];
+	},
+
+	// Cadastro rápido de autor
+	async criarAutorRapido(nome) {
+		const response = await api.post('/api/authors', { nome });
+		return response.data;
+	},
+
+	// Cadastro rápido de editora
+	async criarEditoraRapida(nome) {
+		const response = await api.post('/api/publishers', { nome });
+		return response.data;
 	},
 };
 

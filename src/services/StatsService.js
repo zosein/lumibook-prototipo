@@ -159,6 +159,13 @@ const StatsService = {
       isAtLimit: percentage >= 100
     };
   },
+
+  // Buscar dados globais do dashboard admin
+  async getAdminDashboard() {
+    return api.get('/api/admin/dashboard', {
+      headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+    });
+  },
 };
 
 export default StatsService;

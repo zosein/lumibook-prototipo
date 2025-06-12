@@ -10,12 +10,14 @@ export const useCatalogacao = (adminId) => {
 		tipo: "",
 		categoria: "",
 		editora: "",
+		editoraLabel: "",
 		idioma: "Português",
 		paginas: "",
 		resumo: "",
 		localizacao: "",
 		exemplares: 1,
 		autor: "",
+		autorLabel: "",
 		titulo: "",
 	});
 
@@ -27,6 +29,7 @@ export const useCatalogacao = (adminId) => {
 	const [tiposObra, setTiposObra] = useState([]);
 	const [categorias, setCategorias] = useState([]);
 	const [sugestaoEditoras, setSugestaoEditoras] = useState([]);
+	const [sugestaoAutores, setSugestaoAutores] = useState([]);
 	const [verificandoDuplicata, setVerificandoDuplicata] = useState(false);
 	const [capaUrl, setCapaUrl] = useState(null);
 
@@ -39,7 +42,8 @@ export const useCatalogacao = (adminId) => {
 					CatalogService.getTiposObra(),
 					CatalogService.getCategorias(),
 				]);
-				setTiposObra(tiposData);
+				console.log('Tipos de obra recebidos da API:', tiposData);
+				setTiposObra(Array.isArray(tiposData) ? tiposData : (tiposData?.data || []));
 				setCategorias(categoriasData.categorias || categoriasData);
 			} catch (error) {
 				console.error("Erro ao carregar dados iniciais:", error);
@@ -72,6 +76,17 @@ export const useCatalogacao = (adminId) => {
 		}
 	}, []);
 
+	const buscarAutores = useCallback(async (termo) => {
+		if (termo.length < 2) return setSugestaoAutores([]);
+		try {
+			const autores = await CatalogService.getAutores(termo);
+			setSugestaoAutores(autores);
+		} catch (error) {
+			console.error("Erro ao buscar autores:", error);
+			setSugestaoAutores([]);
+		}
+	}, []);
+
 	const verificarDuplicata = useCallback(async (isbn, titulo) => {
 		if (!isbn && !titulo) return;
 		setVerificandoDuplicata(true);
@@ -98,39 +113,75 @@ export const useCatalogacao = (adminId) => {
 	const preencherPorISBN = useCallback(async (isbn) => {
 		if (!isbn || isbn.length < 10) return;
 		try {
-			let obra = await CatalogService.buscarPorISBN(isbn);
-			if (!obra) {
-				// Busca no utilitário centralizado (OpenLibrary + Google Books)
-				obra = await buscarLivroPorISBN(isbn);
+			// Busca OpenLibrary
+			let dadosLivro = null;
+			try {
+				dadosLivro = await buscarLivroPorISBN(isbn); // agora só OpenLibrary
+			} catch (e) {
+				dadosLivro = null;
 			}
-			if (obra) {
-				setFormData((prev) => ({
-					...prev,
-					titulo: obra.titulo || prev.titulo,
-					autor: obra.autor || prev.autor,
-					editora: obra.editora || prev.editora,
-					ano: obra.ano || prev.ano,
-					idioma: obra.idioma || prev.idioma,
-					paginas: obra.paginas || prev.paginas,
-					resumo: obra.resumo || prev.resumo,
-					categoria: obra.categoria || prev.categoria,
-				}));
-				setCapaUrl(obra.capa || null);
-				setSuccess("Dados preenchidos automaticamente via ISBN!");
-			} else {
-				setCapaUrl(null);
+
+			// Busca local (opcional)
+			let obraLocal = null;
+			try {
+				obraLocal = await CatalogService.buscarPorISBN(isbn);
+			} catch (error) {
+				obraLocal = null;
 			}
+
+			// Preencher diretamente com o nome do autor/editora, sem buscar ID
+			let autorLabel = dadosLivro?.autor || obraLocal?.autor || '';
+			let editoraLabel = dadosLivro?.editora || obraLocal?.editora || '';
+			let categoria = dadosLivro?.categoria || obraLocal?.categoria || '';
+
+			// Fallback da capa: se não houver capa no OpenLibrary, tenta Google Books
+			let capaUrl = dadosLivro?.capa || null;
+			if (!capaUrl) {
+				try {
+					const googleData = await import('../utils/buscaLivroPorISBN');
+					const googleLivro = await googleData.buscarLivroGoogleBooks(isbn);
+					if (googleLivro && googleLivro.capa) {
+						capaUrl = googleLivro.capa;
+					}
+					// Fallback para autor/editora/categoria do Google Books se não vier do OpenLibrary
+					if (!autorLabel && googleLivro?.autor) autorLabel = googleLivro.autor;
+					if (!editoraLabel && googleLivro?.editora) editoraLabel = googleLivro.editora;
+					if (!categoria && googleLivro?.categoria) categoria = googleLivro.categoria;
+				} catch {}
+			}
+
+			setFormData((prev) => ({
+				...prev,
+				titulo: dadosLivro?.titulo?.trim() ? dadosLivro.titulo : (obraLocal?.titulo || prev.titulo),
+				autor: '', // Não seta ID
+				autorLabel: autorLabel || prev.autorLabel,
+				editora: '', // Não seta ID
+				editoraLabel: editoraLabel || prev.editoraLabel,
+				categoria: categoria || prev.categoria,
+				ano: dadosLivro?.ano || obraLocal?.ano || prev.ano,
+				idioma: dadosLivro?.idioma || obraLocal?.idioma || prev.idioma,
+				paginas: (dadosLivro?.paginas ?? obraLocal?.paginas ?? prev.paginas)?.toString() || '',
+				resumo: dadosLivro?.resumo || obraLocal?.resumo || prev.resumo,
+				isbn: prev.isbn,
+				tipo: prev.tipo,
+				localizacao: prev.localizacao,
+			}));
+			setCapaUrl(capaUrl);
+			setSuccess("Dados preenchidos automaticamente via ISBN!");
+			setErrors((prev) => ({ ...prev, isbn: undefined })); // Limpa erro de ISBN
 		} catch (error) {
 			setCapaUrl(null);
-			console.error("Erro ao buscar por ISBN:", error);
+			setSuccess("");
+			setErrors((prev) => ({ ...prev, isbn: undefined })); // Não mostra erro
 		}
 	}, []);
 
 	const validarFormulario = useCallback(() => {
 		// Garantir que a validação veja autores como array
+		const autoresValidados = formData.autor ? [formData.autor] : (formData.autorLabel ? [formData.autorLabel] : []);
 		const dadosParaValidar = {
 			...formData,
-			autores: formData.autor ? [formData.autor] : [],
+			autores: autoresValidados,
 		};
 		const validation = CatalogService.validarDadosObra(dadosParaValidar);
 		setErrors(validation.errors);
@@ -152,20 +203,22 @@ export const useCatalogacao = (adminId) => {
 		setErrors({});
 		setSuccess("");
 		try {
-			// Enviar apenas os campos esperados pelo backend
+			// Enviar sempre authors como array de strings (nomes) e publisher como string.
+			// O campo ano deve ser enviado como número (parseInt), não string.
+			// O campo stock permanece igual (Number(formData.exemplares)).
+			// Não buscar ou enviar IDs de autor/editora, apenas nomes.
+			// O payload deve ser compatível com o backend conforme instrução.
 			const dadosEnvio = {
-				isbn: formData.isbn,
-				ano: formData.ano,
-				tipo: formData.tipo,
-				categoria: formData.categoria,
-				editora: formData.editora,
-				idioma: formData.idioma,
-				paginas: formData.paginas,
-				resumo: formData.resumo,
-				localizacao: formData.localizacao,
-				exemplares: formData.exemplares,
 				title: formData.titulo,
-				authors: formData.autor ? [formData.autor] : [],
+				authors: formData.autorLabel ? [formData.autorLabel] : [],
+				publisher: formData.editoraLabel || formData.editora || '',
+				category: formData.categoria,
+				stock: Number(formData.exemplares),
+				idioma: formData.idioma,
+				localizacao: formData.localizacao,
+				paginas: formData.paginas ? parseInt(formData.paginas) : undefined,
+				resumo: formData.resumo,
+				tipo: formData.tipo,
 			};
 			console.log('Payload final para o backend:', dadosEnvio);
 			const resultado = await CatalogService.catalogarObra(dadosEnvio, adminId);
@@ -178,12 +231,14 @@ export const useCatalogacao = (adminId) => {
 					tipo: "",
 					categoria: "",
 					editora: "",
+					editoraLabel: "",
 					idioma: "Português",
 					paginas: "",
 					resumo: "",
 					localizacao: "",
 					exemplares: 1,
 					autor: "",
+					autorLabel: "",
 					titulo: "",
 				});
 				return { success: true, data: resultado.data };
@@ -205,16 +260,19 @@ export const useCatalogacao = (adminId) => {
 			tipo: "",
 			categoria: "",
 			editora: "",
+			editoraLabel: "",
 			idioma: "Português",
 			paginas: "",
 			resumo: "",
 			localizacao: "",
 			exemplares: 1,
 			autor: "",
+			autorLabel: "",
 			titulo: "",
 		});
 		setErrors({});
 		setSuccess("");
+		setCapaUrl(null);
 	}, []);
 
 	return {
@@ -226,9 +284,11 @@ export const useCatalogacao = (adminId) => {
 		tiposObra,
 		categorias,
 		sugestaoEditoras,
+		sugestaoAutores,
 		verificandoDuplicata,
 		updateField,
 		buscarEditoras,
+		buscarAutores,
 		verificarDuplicata,
 		preencherPorISBN,
 		validarFormulario,

@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { User, Database, UserPlus, FileText, BarChart3, Clock, BookOpen,Plus,
-Edit3, TrendingUp, Activity} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, BarChart3, Plus, Edit3, Activity, RefreshCw } from 'lucide-react';
 import AdminProfile from "../components/AdminProfile";
 import { registerBibliotecario } from '../services/UserService';
+import CatalogService from '../services/CatalogService';
+import React from 'react';
 
 // Array global para registrar req/res
 window._frontReqResLog = window._frontReqResLog || [];
@@ -91,41 +92,8 @@ export default function AdminProfilePage({ setCurrentPage, user, isLoggedIn, onL
 
 // Dashboard de estatísticas e atividades do sistema
 export function DashboardContent() {
-  // Dados mockados para exibição visual do dashboard
-  const statsData = [
-    { 
-      title: 'Total de Obras', 
-      value: '15.247', 
-      icon: BookOpen, 
-      color: 'blue', 
-      change: '+5.2%',
-      trend: 'up'
-    },
-    { 
-      title: 'Usuários Ativos', 
-      value: '2.438', 
-      icon: User, 
-      color: 'green', 
-      change: '+12.3%',
-      trend: 'up'
-    },
-    { 
-      title: 'Empréstimos Hoje', 
-      value: '89', 
-      icon: Clock, 
-      color: 'orange', 
-      change: '+2.1%',
-      trend: 'up'
-    },
-    { 
-      title: 'Obras Disponíveis', 
-      value: '12.891', 
-      icon: Database, 
-      color: 'purple', 
-      change: '-1.8%',
-      trend: 'down'
-    }
-  ];
+  // Removido: dados mockados para exibição visual do dashboard
+  // const statsData = [...];
 
   return (
     <div className="p-6 space-y-6">
@@ -143,25 +111,11 @@ export function DashboardContent() {
       </div>
       {/* Cards de estatísticas principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {statsData.map((stat, index) => (
-          <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 bg-${stat.color}-100 rounded-xl`}>
-                <stat.icon size={24} className={`text-${stat.color}-600`} />
-              </div>
-              <div className={`flex items-center gap-1 text-sm font-medium ${
-                stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-              }`}>
-                <TrendingUp size={14} className={stat.trend === 'down' ? 'rotate-180' : ''} />
-                {stat.change}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 font-medium">{stat.title}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-            </div>
-          </div>
-        ))}
+        {/* Integração futura: UserService.getSystemActivities() */}
+        <div className="text-center py-4">
+          <p className="text-gray-500">Atividades carregadas dinamicamente da API</p>
+          <p className="text-sm text-gray-400 mt-1">Integração com UserService.getSystemActivities()</p>
+        </div>
       </div>
       {/* Atividades recentes (exemplo visual) */}
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100 overflow-hidden">
@@ -219,19 +173,28 @@ export function CatalogacaoContent() {
     console.log('Catalogar nova obra:', formData);
   };
 
+  // Botão de atualizar (simula refresh dos dados do formulário)
+  const handleRefresh = () => {
+    setFormData({
+      titulo: '', autor: '', isbn: '', ano: '', tipo: '', categoria: '', 
+      editora: '', idioma: 'Português', paginas: '', resumo: '', 
+      localizacao: '', exemplares: 1
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header da seção de catalogação */}
-      <div className="border-b border-gray-100 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-green-100 rounded-lg">
-            <Plus size={24} className="text-green-600" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Catalogar Nova Obra</h2>
-            <p className="text-gray-600">Adicione novas obras ao acervo da biblioteca</p>
-          </div>
+      <div className="border-b border-gray-100 pb-4 flex items-center gap-4">
+        <div className="p-2 bg-green-100 rounded-lg">
+          <Plus size={24} className="text-green-600" />
         </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Catalogar Nova Obra</h2>
+          <p className="text-gray-600">Adicione novas obras ao acervo da biblioteca</p>
+        </div>
+        <button onClick={handleRefresh} className="ml-auto p-2 rounded-full hover:bg-green-100 transition" title="Atualizar formulário">
+          <RefreshCw size={22} className="text-green-600" />
+        </button>
       </div>
       {/* Formulário de cadastro de obra */}
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100">
@@ -414,53 +377,226 @@ export function CatalogacaoContent() {
 
 // Componentes placeholder padronizados
 export function GerenciarAcervoContent() {
-  return (
-    <div className="p-6 space-y-6">
-      <div className="border-b border-gray-100 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <Edit3 size={24} className="text-purple-600" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Gerenciar Acervo</h2>
-            <p className="text-gray-600">Editar, remover e organizar obras do acervo</p>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100 p-12 text-center">
-        <div className="p-4 bg-purple-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-          <Edit3 size={32} className="text-purple-600" />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Funcionalidade em Desenvolvimento</h3>
-        <p className="text-gray-600">Esta seção estará disponível em breve</p>
-      </div>
-    </div>
-  );
-}
+  const [livros, setLivros] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
+  const [busca, setBusca] = useState('');
+  const [livroSelecionado, setLivroSelecionado] = useState(null); // livro selecionado para modal
+  const [editData, setEditData] = useState({});
+  const [deletando, setDeletando] = useState(false);
+  const [msg, setMsg] = useState('');
 
-export function UsuariosContent() {
+  // Buscar livros
+  const fetchLivros = React.useCallback(async () => {
+    setLoading(true);
+    setErro('');
+    try {
+      const data = await CatalogService.getBooks(busca ? { search: busca } : {});
+      setLivros(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setErro('Erro ao buscar livros.');
+      setLivros([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [busca]);
+
+  useEffect(() => { fetchLivros(); }, [fetchLivros]);
+
+  // Abrir modal de edição
+  const handleOpenModal = (livro) => {
+    setLivroSelecionado(livro);
+    setEditData({ ...livro });
+    setMsg('');
+    setDeletando(false);
+  };
+  // Fechar modal
+  const handleCloseModal = () => {
+    setLivroSelecionado(null);
+    setEditData({});
+    setMsg('');
+    setDeletando(false);
+  };
+  // Salvar edição
+  const handleEditSave = async () => {
+    try {
+      const payload = {
+        title: editData.titulo,
+        authors: editData.autores,
+        isbn: editData.isbn,
+        ano: editData.ano,
+        tipo: editData.tipo,
+        category: editData.categoria,
+        publisher: editData.editora,
+        stock: Number(editData.stock),
+        disponivel: editData.disponivel,
+        resumo: editData.resumo,
+        capa: editData.capa,
+        paginas: editData.paginas,
+        localizacao: editData.localizacao,
+        idioma: editData.idioma,
+      };
+      await CatalogService.updateBook(livroSelecionado.id, payload, localStorage.getItem('authToken'));
+      setMsg('Livro atualizado!');
+      setLivroSelecionado(null);
+      fetchLivros();
+    } catch {
+      setMsg('Erro ao salvar alterações.');
+    }
+  };
+  // Deletar livro
+  const handleDelete = async () => {
+    try {
+      await CatalogService.deleteBook(livroSelecionado.id, localStorage.getItem('authToken'));
+      setMsg('Livro removido!');
+      setLivroSelecionado(null);
+      setDeletando(false);
+      fetchLivros();
+    } catch {
+      setMsg('Erro ao remover livro.');
+    }
+  };
+
+  // Adicionar função de refresh
+  const handleRefresh = () => fetchLivros();
+
   return (
     <div className="p-6 space-y-6">
-      <div className="border-b border-gray-100 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-orange-100 rounded-lg">
-            <UserPlus size={24} className="text-orange-600" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Gerenciar Usuários</h2>
-            <p className="text-gray-600">Visualizar e gerenciar usuários do sistema</p>
+      <div className="border-b border-gray-100 pb-4 flex items-center gap-4">
+        <div className="p-2 bg-purple-100 rounded-lg"><Edit3 size={24} className="text-purple-600" /></div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Gerenciar Acervo</h2>
+          <p className="text-gray-600">Clique em um livro para editar ou remover</p>
+        </div>
+        <button onClick={handleRefresh} className="ml-auto p-2 rounded-full hover:bg-purple-100 transition" title="Atualizar acervo">
+          <RefreshCw size={22} className="text-purple-600" />
+        </button>
+        <input
+          type="text"
+          className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-purple-100 focus:outline-none"
+          placeholder="Buscar por título, autor, ISBN..."
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+        />
+      </div>
+      {msg && <div className="text-center text-green-700 font-medium">{msg}</div>}
+      {erro && <div className="text-center text-red-600 font-medium">{erro}</div>}
+      {loading ? (
+        <div className="p-8 text-center text-gray-500">Carregando catálogo...</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border rounded-xl shadow-sm">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-4 py-2">Título</th>
+                <th className="px-4 py-2">Autores</th>
+                <th className="px-4 py-2">Estoque</th>
+                <th className="px-4 py-2">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {livros.map(livro => (
+                <tr key={livro.id} className="border-b hover:bg-purple-50 cursor-pointer transition" onClick={() => handleOpenModal(livro)}>
+                  <td className="px-4 py-2 font-medium max-w-xs truncate">{livro.titulo}</td>
+                  <td className="px-4 py-2 max-w-xs truncate">{
+                    Array.isArray(livro.authors)
+                      ? livro.authors.map(a => typeof a === 'string' ? a : (a?.nome || a)).join(', ')
+                      : Array.isArray(livro.autores)
+                        ? livro.autores.map(a => typeof a === 'string' ? a : (a?.nome || a)).join(', ')
+                        : livro.autor || ''
+                  }</td>
+                  <td className="px-4 py-2 text-center">{livro.stock ?? livro.exemplares ?? 0}</td>
+                  <td className="px-4 py-2 text-center">
+                    <button className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700" onClick={e => { e.stopPropagation(); handleOpenModal(livro); }}>Gerenciar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {/* Modal de edição/remoção */}
+      {livroSelecionado && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 shadow-xl w-full max-w-lg">
+            <h2 className="text-xl font-bold mb-4 text-center">Gerenciar Livro</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Título</label>
+                <input type="text" value={editData.titulo || ''} onChange={e => setEditData(d => ({ ...d, titulo: e.target.value }))} className="w-full border rounded px-2 py-1" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Autores</label>
+                <input
+                  type="text"
+                  value={Array.isArray(editData.authors)
+                    ? editData.authors.map(a => a.nome).join(', ')
+                    : Array.isArray(editData.autores)
+                      ? editData.autores.map(a => typeof a === 'string' ? a : (a?.nome || a)).join(', ')
+                      : editData.autor || ''}
+                  onChange={e => setEditData(d => ({
+                    ...d,
+                    authors: e.target.value.split(',').map(s => ({ nome: s.trim() })).filter(a => a.nome.length > 0),
+                    autores: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  }))}
+                  className="w-full border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">ISBN</label>
+                <input type="text" value={editData.isbn || ''} onChange={e => setEditData(d => ({ ...d, isbn: e.target.value }))} className="w-full border rounded px-2 py-1" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Categoria</label>
+                <input type="text" value={editData.categoria || ''} onChange={e => setEditData(d => ({ ...d, categoria: e.target.value }))} className="w-full border rounded px-2 py-1" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Editora</label>
+                <input
+                  type="text"
+                  value={editData.editora?.nome || editData.editora || ''}
+                  onChange={e => setEditData(d => ({
+                    ...d,
+                    editora: { nome: e.target.value }
+                  }))}
+                  className="w-full border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Ano</label>
+                <input type="number" value={editData.ano || ''} onChange={e => setEditData(d => ({ ...d, ano: e.target.value }))} className="w-full border rounded px-2 py-1" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Estoque</label>
+                <input type="number" value={editData.stock || editData.exemplares || ''} onChange={e => setEditData(d => ({ ...d, stock: e.target.value }))} className="w-full border rounded px-2 py-1" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Localização</label>
+                <input type="text" value={editData.localizacao || ''} onChange={e => setEditData(d => ({ ...d, localizacao: e.target.value }))} className="w-full border rounded px-2 py-1" />
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Resumo</label>
+              <textarea rows={3} value={editData.resumo || ''} onChange={e => setEditData(d => ({ ...d, resumo: e.target.value }))} className="w-full border rounded px-2 py-1" />
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="bg-green-600 text-white px-4 py-2 rounded" onClick={handleEditSave}>Salvar</button>
+              <button className="bg-gray-300 px-4 py-2 rounded" onClick={handleCloseModal}>Cancelar</button>
+              <button className="bg-red-600 text-white px-4 py-2 rounded" onClick={() => setDeletando(true)}>Remover</button>
+            </div>
+            {/* Confirmação de deleção */}
+            {deletando && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                <p className="mb-2 text-red-700">Tem certeza que deseja remover este livro do acervo?</p>
+                <div className="flex gap-2 justify-end">
+                  <button className="bg-red-600 text-white px-4 py-2 rounded" onClick={handleDelete}>Remover</button>
+                  <button className="bg-gray-300 px-4 py-2 rounded" onClick={() => setDeletando(false)}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
-      
-      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100 p-12 text-center">
-        <div className="p-4 bg-orange-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-          <UserPlus size={32} className="text-orange-600" />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Funcionalidade em Desenvolvimento</h3>
-        <p className="text-gray-600">Esta seção estará disponível em breve</p>
-      </div>
+      )}
     </div>
   );
 }

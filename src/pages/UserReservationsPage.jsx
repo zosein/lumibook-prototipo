@@ -32,8 +32,12 @@ export default function UserReservationsPage({ setCurrentPage, user, isLoggedIn 
     setCancelingId(reservationId);
     try {
       await ReservationService.cancelReservation(reservationId);
-      setReservations(reservations.filter(r => r.id !== reservationId));
-    } catch (err) {}
+      const data = await ReservationService.getActiveReservations(user.id);
+      setReservations(data);
+      toast.success('Reserva cancelada!');
+    } catch (err) {
+      toast.error('Erro ao cancelar reserva: ' + (err.response?.data?.message || err.message));
+    }
     setCancelingId(null);
   };
 
