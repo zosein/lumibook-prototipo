@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import CatalogService from "../services/CatalogService";
 import { buscarLivroPorISBN } from '../utils/buscaLivroPorISBN';
 
@@ -22,38 +22,13 @@ export const useCatalogacao = (adminId) => {
 	});
 
 	// Estado de controle
-	const [loading, setLoading] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [errors, setErrors] = useState({});
 	const [success, setSuccess] = useState("");
-	const [tiposObra, setTiposObra] = useState([]);
-	const [categorias, setCategorias] = useState([]);
 	const [sugestaoEditoras, setSugestaoEditoras] = useState([]);
 	const [sugestaoAutores, setSugestaoAutores] = useState([]);
 	const [verificandoDuplicata, setVerificandoDuplicata] = useState(false);
 	const [capaUrl, setCapaUrl] = useState(null);
-
-	// Carregar tipos e categorias na inicialização
-	useEffect(() => {
-		const carregarDados = async () => {
-			setLoading(true);
-			try {
-				const [tiposData, categoriasData] = await Promise.all([
-					CatalogService.getTiposObra(),
-					CatalogService.getCategorias(),
-				]);
-				console.log('Tipos de obra recebidos da API:', tiposData);
-				setTiposObra(Array.isArray(tiposData) ? tiposData : (tiposData?.data || []));
-				setCategorias(categoriasData.categorias || categoriasData);
-			} catch (error) {
-				console.error("Erro ao carregar dados iniciais:", error);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		carregarDados();
-	}, []);
 
 	// Atualizar campo do formulário
 	const updateField = useCallback(
@@ -277,12 +252,10 @@ export const useCatalogacao = (adminId) => {
 
 	return {
 		formData,
-		loading,
+		setFormData,
 		submitting,
 		errors,
 		success,
-		tiposObra,
-		categorias,
 		sugestaoEditoras,
 		sugestaoAutores,
 		verificandoDuplicata,

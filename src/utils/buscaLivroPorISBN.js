@@ -60,15 +60,8 @@ async function buscarLivroOpenLibrary(isbn) {
     if (!edicao && googleData.edicao) edicao = googleData.edicao;
   }
 
-  // Se ainda não houver edição, sugerir padrão
   if (!edicao) edicao = '1ª edição';
-
-  // Se ainda não houver resumo, exibir mensagem amigável
-  if (!resumo) {
-    resumo = 'Resumo não disponível automaticamente. Preencha manualmente se desejar.';
-  }
-
-  // NÃO cortar o resumo no primeiro parágrafo/frase e NÃO limitar o tamanho
+  if (!resumo) resumo = 'Resumo não disponível automaticamente. Preencha manualmente se desejar.';
 
   // Traduzir para português se não estiver em português
   let resumoTraduzido = resumo;
@@ -92,7 +85,6 @@ async function buscarLivroOpenLibrary(isbn) {
   if (livro.subjects && Array.isArray(livro.subjects) && livro.subjects.length > 0) {
     categoria = livro.subjects[0].name;
   }
-  // Traduzir categoria para português se necessário
   let categoriaTraduzida = categoria;
   if (categoria && !/^[a-zA-ZáéíóúãõâêîôûçàèìòùäëïöüÁÉÍÓÚÃÕÂÊÎÔÛÇÀÈÌÒÙÄËÏÖÜ\s-]+$/.test(categoria)) {
     try {
@@ -102,17 +94,49 @@ async function buscarLivroOpenLibrary(isbn) {
     }
   }
 
+  // Autores (array de nomes)
+  const autores = Array.isArray(livro.authors)
+    ? livro.authors.map(a => a.name)
+    : [];
+
+  // Publishers (array de nomes)
+  const editoras = Array.isArray(livro.publishers)
+    ? livro.publishers.map(e => e.name)
+    : [];
+
+  // ISBNs
+  const isbn_10 = livro.identifiers?.isbn_10?.[0] || '';
+  const isbn_13 = livro.identifiers?.isbn_13?.[0] || '';
+
+  // Links
+  const urlOpenLibrary = livro.url || '';
+  const keyOpenLibrary = livro.key || '';
+
+  // Capa
+  const capa = livro.cover?.large || livro.cover?.medium || livro.cover?.small || '';
+
+  // Ebook info
+  const ebook = Array.isArray(livro.ebooks) && livro.ebooks.length > 0 ? livro.ebooks[0] : null;
+
   return {
     titulo: livro.title || '',
-    autor: livro.authors?.[0]?.name || '',
-    editora: livro.publishers?.[0]?.name || '',
+    autores,
+    autor: autores[0] || '',
+    editora: editoras[0] || '',
+    editoras,
     ano,
     idioma,
     paginas: livro.number_of_pages || '',
     resumo: resumoTraduzido,
     categoria: categoriaTraduzida,
-    capa: livro.cover?.large || livro.cover?.medium || livro.cover?.small || '',
+    capa,
     edicao,
+    isbn_10,
+    isbn_13,
+    urlOpenLibrary,
+    keyOpenLibrary,
+    ebook,
+    raw: livro // retorna o objeto original para uso avançado
   };
 }
 

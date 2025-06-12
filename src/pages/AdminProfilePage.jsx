@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileText, BarChart3, Plus, Edit3, Activity, RefreshCw } from 'lucide-react';
 import AdminProfile from "../components/AdminProfile";
 import { registerBibliotecario } from '../services/UserService';
 import CatalogService from '../services/CatalogService';
 import React from 'react';
+import { useCatalogacao } from '../hooks/useCatalogacao';
+import { buscarLivroPorISBN } from '../utils/buscaLivroPorISBN';
 
 // Array global para registrar req/res
 window._frontReqResLog = window._frontReqResLog || [];
@@ -143,29 +145,125 @@ export function DashboardContent() {
 
 // Formulário de catalogação de obras
 export function CatalogacaoContent() {
-  const [formData, setFormData] = useState({
-    titulo: '',
-    autor: '',
-    isbn: '',
-    ano: '',
-    tipo: '',
-    categoria: '',
-    editora: '',
-    idioma: 'Português',
-    paginas: '',
-    resumo: '',
-    localizacao: '',
-    exemplares: 1
-  });
+  const {
+    formData,
+    setFormData,
+    preencherPorISBN,
+    capaUrl,
+    limparFormulario,
+  } = useCatalogacao();
 
-  // Tipos e categorias fixos para exemplo
-  const tiposObra = [
-    'Livro', 'E-book', 'Periódico', 'Tese', 'Dissertação', 'Artigo', 'Manual'
-  ];
-  const categorias = [
-    'Ciência da Computação', 'Engenharia', 'Matemática', 'Física', 'Química',
-    'Biologia', 'Literatura', 'História', 'Filosofia', 'Direito', 'Medicina'
-  ];
+  const [isbnInput, setIsbnInput] = useState('');
+  const [isbnSuggestions, setIsbnSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const inputRef = useRef();
+  const [categorias, setCategorias] = useState([]);
+
+  useEffect(() => {
+    CatalogService.getCategoriasFixas().then(setCategorias);
+  }, []);
+
+  // Atualizar visibilidade do formulário ao preencher ISBN
+  useEffect(() => {
+    if (isbnInput && isbnInput.replace(/[-\s]/g, '').length >= 10 && formData.titulo) {
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [isbnInput, formData.titulo]);
+
+  // Função para buscar sugestões de ISBN
+  const handleISBNChange = async (e) => {
+    const value = e.target.value;
+    setIsbnInput(value);
+    setFormData(prev => ({ ...prev, isbn: value }));
+    if (value.replace(/[-\s]/g, '').length >= 3) {
+      setLoadingSuggestions(true);
+      try {
+        // Busca sugestões na OpenLibrary/Google Books
+        // Aqui, para exemplo, só busca o ISBN digitado (poderia ser uma API de sugestões)
+        const livro = await buscarLivroPorISBN(value);
+        if (livro && livro.titulo) {
+          setIsbnSuggestions([{ ...livro, isbn: value.replace(/[-\s]/g, '') }]);
+        } else {
+          setIsbnSuggestions([]);
+        }
+      } catch {
+        setIsbnSuggestions([]);
+      } finally {
+        setLoadingSuggestions(false);
+        setShowSuggestions(true);
+      }
+    } else {
+      setIsbnSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Selecionar sugestão do autocomplete
+  const handleSelectSuggestion = async (suggestion) => {
+    setShowSuggestions(false);
+    setIsbnInput(suggestion.isbn_13 || suggestion.isbn_10 || suggestion.isbn);
+    // Preencher com dados do OpenLibrary
+    let newFormData = {
+      ...formData,
+      isbn: suggestion.isbn_13 || suggestion.isbn_10 || suggestion.isbn,
+      titulo: suggestion.titulo || '',
+      autor: (Array.isArray(suggestion.authors) && suggestion.authors.length > 0) ? suggestion.authors.map(a => a.name).join(', ') : (suggestion.autor || ''),
+      autores: (Array.isArray(suggestion.authors) && suggestion.authors.length > 0) ? suggestion.authors.map(a => a.name) : (suggestion.autores || []),
+      editora: (suggestion.editora || (suggestion.publishers && suggestion.publishers[0]?.name) || ''),
+      editoras: suggestion.editoras || [],
+      ano: suggestion.ano || '',
+      idioma: suggestion.idioma || '',
+      paginas: suggestion.paginas || '',
+      resumo: suggestion.resumo || '',
+      categoria: suggestion.categoria || '',
+      capa: suggestion.capa || '',
+      edicao: suggestion.edicao || '',
+      isbn_10: suggestion.isbn_10 || '',
+      isbn_13: suggestion.isbn_13 || '',
+      urlOpenLibrary: suggestion.urlOpenLibrary || '',
+      keyOpenLibrary: suggestion.keyOpenLibrary || '',
+      ebook: suggestion.ebook || null,
+    };
+    setFormData(newFormData);
+
+    // Fallback: buscar no Google Books apenas para campos vazios
+    const isbn = suggestion.isbn_13 || suggestion.isbn_10 || suggestion.isbn;
+    if (isbn) {
+      try {
+        const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        const data = await response.json();
+        if (data.items && data.items.length > 0) {
+          const volume = data.items[0].volumeInfo;
+          // Só preencher campos que estão vazios
+          setFormData(prev => ({
+            ...prev,
+            titulo: prev.titulo || volume.title || '',
+            autor: prev.autor || (volume.authors ? volume.authors.join(', ') : ''),
+            editora: prev.editora || volume.publisher || '',
+            ano: prev.ano || (volume.publishedDate ? volume.publishedDate.substring(0, 4) : ''),
+            idioma: prev.idioma || volume.language || '',
+            paginas: prev.paginas || volume.pageCount || '',
+            resumo: prev.resumo || volume.description || '',
+            capa: prev.capa || (volume.imageLinks ? volume.imageLinks.thumbnail : ''),
+            edicao: prev.edicao || '', // Google Books geralmente não traz edição
+          }));
+        }
+      } catch (e) {
+        // Silenciosamente ignora erros de fallback
+      }
+    }
+  };
+
+  // Limpar formulário e autocomplete
+  const handleLimparFormulario = () => {
+    limparFormulario();
+    setIsbnInput('');
+    setIsbnSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   // Submissão do formulário (integração futura com API)
   const handleSubmit = (e) => {
@@ -173,203 +271,134 @@ export function CatalogacaoContent() {
     console.log('Catalogar nova obra:', formData);
   };
 
-  // Botão de atualizar (simula refresh dos dados do formulário)
-  const handleRefresh = () => {
-    setFormData({
-      titulo: '', autor: '', isbn: '', ano: '', tipo: '', categoria: '', 
-      editora: '', idioma: 'Português', paginas: '', resumo: '', 
-      localizacao: '', exemplares: 1
-    });
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="border-b border-gray-100 pb-4 flex items-center gap-4">
-        <div className="p-2 bg-green-100 rounded-lg">
-          <Plus size={24} className="text-green-600" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white py-8">
+      <div className="w-full max-w-4xl flex flex-col md:flex-row bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        {/* Capa ao lado do formulário */}
+        <div className="md:w-1/3 flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white p-8">
+          {capaUrl ? (
+            <img src={capaUrl} alt="Capa do livro" className="w-48 h-auto rounded-xl shadow mb-4 border border-gray-200" />
+          ) : (
+            <div className="w-48 h-72 flex items-center justify-center bg-gray-100 rounded-xl text-gray-400 text-sm border border-dashed border-gray-200">Capa do livro</div>
+          )}
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Catalogar Nova Obra</h2>
-          <p className="text-gray-600">Adicione novas obras ao acervo da biblioteca</p>
-        </div>
-        <button onClick={handleRefresh} className="ml-auto p-2 rounded-full hover:bg-green-100 transition" title="Atualizar formulário">
-          <RefreshCw size={22} className="text-green-600" />
-        </button>
-      </div>
-      {/* Formulário de cadastro de obra */}
-      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-100">
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Campos do formulário: título, autor, etc. */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Título da Obra*
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.titulo}
-                onChange={(e) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-                placeholder="Digite o título completo"
-              />
+        <div className="md:w-2/3 w-full p-8 flex flex-col justify-center">
+          <div className="pb-4 flex items-center gap-4">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Plus size={24} className="text-green-600" />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Autor*
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.autor}
-                onChange={(e) => setFormData(prev => ({ ...prev, autor: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-                placeholder="Nome do autor"
-              />
+              <h2 className="text-2xl font-bold text-gray-900">Catalogar Nova Obra</h2>
+              <p className="text-gray-600">Adicione novas obras ao acervo da biblioteca</p>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                ISBN
-              </label>
-              <input
-                type="text"
-                value={formData.isbn}
-                onChange={(e) => setFormData(prev => ({ ...prev, isbn: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-                placeholder="978-XX-XXXX-XXX-X"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Tipo de Obra*
-              </label>
-              <select
-                required
-                value={formData.tipo}
-                onChange={(e) => setFormData(prev => ({ ...prev, tipo: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-              >
-                <option value="">Selecione o tipo</option>
-                {tiposObra.map(tipo => (
-                  <option key={tipo} value={tipo}>{tipo}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Categoria*
-              </label>
-              <select
-                required
-                value={formData.categoria}
-                onChange={(e) => setFormData(prev => ({ ...prev, categoria: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-              >
-                <option value="">Selecione a categoria</option>
-                {categorias.map(categoria => (
-                  <option key={categoria} value={categoria}>{categoria}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Ano de Publicação*
-              </label>
-              <input
-                type="number"
-                required
-                min="1800"
-                max={new Date().getFullYear()}
-                value={formData.ano}
-                onChange={(e) => setFormData(prev => ({ ...prev, ano: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Editora
-              </label>
-              <input
-                type="text"
-                value={formData.editora}
-                onChange={(e) => setFormData(prev => ({ ...prev, editora: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-                placeholder="Nome da editora"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Número de Páginas
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={formData.paginas}
-                onChange={(e) => setFormData(prev => ({ ...prev, paginas: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Localização*
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.localizacao}
-                onChange={(e) => setFormData(prev => ({ ...prev, localizacao: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-                placeholder="Ex: Estante A25, Prateleira 2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Quantidade de Exemplares*
-              </label>
-              <input
-                type="number"
-                required
-                min="1"
-                value={formData.exemplares}
-                onChange={(e) => setFormData(prev => ({ ...prev, exemplares: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Resumo
-              </label>
-              <textarea
-                rows="4"
-                value={formData.resumo}
-                onChange={(e) => setFormData(prev => ({ ...prev, resumo: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200 resize-none"
-                placeholder="Breve descrição da obra..."
-              />
-            </div>
-          </div>
-          {/* Botões de ação do formulário */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
-            <button
-              type="submit"
-              className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
-            >
-              <Plus size={18} />
-              Catalogar Obra
-            </button>
-            <button
-              type="button"
-              className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
-              onClick={() => setFormData({
-                titulo: '', autor: '', isbn: '', ano: '', tipo: '', categoria: '', 
-                editora: '', idioma: 'Português', paginas: '', resumo: '', 
-                localizacao: '', exemplares: 1
-              })}
-            >
-              Limpar Formulário
+            <button onClick={handleLimparFormulario} className="ml-auto p-2 rounded-full hover:bg-green-100 transition" title="Limpar formulário">
+              <RefreshCw size={22} className="text-green-600" />
             </button>
           </div>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Campo ISBN com autocomplete */}
+              <div className="md:col-span-2 relative">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">ISBN</label>
+                <input
+                  type="text"
+                  value={isbnInput}
+                  onChange={handleISBNChange}
+                  onFocus={() => setShowSuggestions(isbnSuggestions.length > 0)}
+                  ref={inputRef}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200 bg-white"
+                  placeholder="978-XX-XXXX-XXX-X"
+                  autoComplete="off"
+                />
+                {loadingSuggestions && <div className="absolute left-0 mt-1 text-xs text-gray-500">Buscando sugestões...</div>}
+                {showSuggestions && isbnSuggestions.length > 0 && (
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {isbnSuggestions.map((s, idx) => (
+                      <li
+                        key={s.isbn + idx}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                        onClick={() => handleSelectSuggestion(s)}
+                      >
+                        {s.capa && <img src={s.capa} alt="Capa" className="w-10 h-14 object-cover rounded mr-2" />}
+                        <div>
+                          <div className="font-semibold text-sm">{s.titulo}</div>
+                          <div className="text-xs text-gray-600">{s.autor} {s.ano && `(${s.ano})`}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {/* Campos principais em grid */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Título*</label>
+                <input type="text" required value={formData.titulo} onChange={e => setFormData(prev => ({ ...prev, titulo: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Título completo" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Autor*</label>
+                <input type="text" required value={formData.autor} onChange={e => setFormData(prev => ({ ...prev, autor: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Nome do autor" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Editora</label>
+                <input type="text" value={formData.editora} onChange={e => setFormData(prev => ({ ...prev, editora: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Nome da editora" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Ano*</label>
+                <input type="number" required min="1800" max={new Date().getFullYear()} value={formData.ano} onChange={e => setFormData(prev => ({ ...prev, ano: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Ano de publicação" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Categoria*</label>
+                <select required value={formData.categoria} onChange={e => setFormData(prev => ({ ...prev, categoria: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200">
+                  <option value="">Selecione a categoria</option>
+                  {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo*</label>
+                <input type="text" required value={formData.tipo} onChange={e => setFormData(prev => ({ ...prev, tipo: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Tipo de obra" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Localização*</label>
+                <input type="text" required value={formData.localizacao} onChange={e => setFormData(prev => ({ ...prev, localizacao: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Localização na biblioteca" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Estoque*</label>
+                <input type="number" required min="1" value={formData.exemplares} onChange={e => setFormData(prev => ({ ...prev, exemplares: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Quantidade de exemplares" />
+              </div>
+            </div>
+            {/* Campos avançados colapsáveis */}
+            <details className="mt-4">
+              <summary className="cursor-pointer text-blue-700 font-medium mb-2">Campos avançados</summary>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Edição</label>
+                  <input type="text" value={formData.edicao || ''} onChange={e => setFormData(prev => ({ ...prev, edicao: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Edição" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Idioma</label>
+                  <input type="text" value={formData.idioma} onChange={e => setFormData(prev => ({ ...prev, idioma: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Idioma" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Número de Páginas</label>
+                  <input type="number" min="1" value={formData.paginas} onChange={e => setFormData(prev => ({ ...prev, paginas: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200" placeholder="Número de páginas" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Resumo</label>
+                  <textarea rows="4" value={formData.resumo} onChange={e => setFormData(prev => ({ ...prev, resumo: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all duration-200 resize-none" placeholder="Breve descrição da obra..." />
+                </div>
+              </div>
+            </details>
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
+              <button type="submit" className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
+                <Plus size={18} />
+                Catalogar Obra
+              </button>
+              <button type="button" className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]" onClick={handleLimparFormulario}>
+                Limpar Formulário
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -385,6 +414,11 @@ export function GerenciarAcervoContent() {
   const [editData, setEditData] = useState({});
   const [deletando, setDeletando] = useState(false);
   const [msg, setMsg] = useState('');
+  const [categorias, setCategorias] = useState([]);
+
+  useEffect(() => {
+    CatalogService.getCategoriasFixas().then(setCategorias);
+  }, []);
 
   // Buscar livros
   const fetchLivros = React.useCallback(async () => {
@@ -548,7 +582,10 @@ export function GerenciarAcervoContent() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Categoria</label>
-                <input type="text" value={editData.categoria || ''} onChange={e => setEditData(d => ({ ...d, categoria: e.target.value }))} className="w-full border rounded px-2 py-1" />
+                <select value={editData.categoria || ''} onChange={e => setEditData(d => ({ ...d, categoria: e.target.value }))} className="w-full border rounded px-2 py-1">
+                  <option value="">Selecione a categoria</option>
+                  {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Editora</label>

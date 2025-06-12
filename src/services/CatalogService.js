@@ -105,18 +105,6 @@ const CatalogService = {
 		};
 	},
 
-	// Buscar tipos de obra da API
-	async getTiposObra() {
-		const response = await api.get("/api/works/types", { headers: this.getHeaders(false) });
-		return response.data;
-	},
-
-	// Buscar categorias da API
-	async getCategorias() {
-		const response = await api.get("/api/categories", { headers: this.getHeaders(false) });
-		return response.data;
-	},
-
 	// Buscar editoras da API (para autocomplete)
 	async getEditoras(termo = "") {
 		const response = await api.get(`/api/publishers/search?query=${encodeURIComponent(termo)}`, { headers: this.getHeaders(false) });
@@ -229,36 +217,6 @@ const CatalogService = {
 		return res;
 	},
 
-	// Métodos para rotas de obras avançadas
-	getObras: async function(params = {}, token) {
-		const res = await api.get("/api/works", {
-			params,
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		return res.data;
-	},
-
-	catalogarObraAdmin: async function(data, token) {
-		const res = await api.post("/api/admin/works/catalog", data, {
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		return res.data;
-	},
-
-	verificarDuplicataObra: async function(params = {}, token) {
-		const res = await api.get("/api/works/check-duplicate", {
-			params,
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		return res.data;
-	},
-
-	// Buscar por ISBN
-	async getBookByISBN(isbn) {
-		const res = await api.get(`/api/books/isbn/${isbn}`);
-		return res.data;
-	},
-
 	// Buscar autores da API (para autocomplete)
 	async getAutores(termo = "") {
 		const response = await api.get(`/api/authors/search?query=${encodeURIComponent(termo)}`, { headers: this.getHeaders(false) });
@@ -277,6 +235,12 @@ const CatalogService = {
 	// Cadastro rápido de editora
 	async criarEditoraRapida(nome) {
 		const response = await api.post('/api/publishers', { nome });
+		return response.data;
+	},
+
+	// Nova função para buscar categorias fixas do backend
+	async getCategoriasFixas() {
+		const response = await api.get("/api/works/categories");
 		return response.data;
 	},
 };
