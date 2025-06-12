@@ -258,17 +258,23 @@ class StatsService {
 
   // Buscar dados do dashboard do administrador
   async getAdminDashboard() {
-    try {
-      const response = await api.get('/api/admin/dashboard', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`
+    // MOCK: Retorna dados fornecidos pelo usuário
+    return {
+      data: {
+        sucesso: true,
+        dados: {
+          totalUsuarios: 5,
+          totalLivros: 9,
+          totalEmprestimos: 7,
+          totalReservas: 12,
+          totalMultas: 0,
+          emprestimosAbertos: 1,
+          reservasPendentes: 3,
+          multasPendentes: 0,
+          atividadesRecentes: []
         }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao buscar dashboard admin:', error);
-      throw error;
-    }
+      }
+    };
   }
 
   // Atualizar estatísticas após operação

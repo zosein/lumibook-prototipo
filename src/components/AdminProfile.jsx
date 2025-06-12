@@ -315,7 +315,6 @@ function DashboardSection({
 }) {
 	const [activities, setActivities] = useState([]);
 	const [activitiesLoading, setActivitiesLoading] = useState(true);
-	const [refreshing, setRefreshing] = useState(false);
 	const [dashboardStats, setDashboardStats] = useState(stats);
 
 	// Atualiza dashboardStats quando stats muda externamente (ex: login)
@@ -324,26 +323,12 @@ function DashboardSection({
 		if (stats && stats.dados) {
 			statsObj = stats.dados;
 		}
-		console.log('Dashboard stats recebidos:', statsObj);
 		setDashboardStats(statsObj || {});
 	}, [stats]);
 
-	const handleDashboardRefresh = async () => {
-		setRefreshing(true);
-		try {
-			const response = await StatsService.getAdminDashboard();
-			const apiData = response.data;
-			if (apiData && apiData.dados) {
-				setDashboardStats({ ...apiData.dados, sucesso: apiData.sucesso });
-			} else {
-				setDashboardStats(apiData);
-			}
-			toast.success('Dashboard atualizado com sucesso!');
-		} catch (err) {
-			toast.error('Erro ao atualizar informações do dashboard.');
-		} finally {
-			setRefreshing(false);
-		}
+	// Simular refresh apenas com toast
+	const handleDashboardRefresh = () => {
+		toast.info('Dashboard mockado atualizado!');
 	};
 
 	useEffect(() => {
@@ -367,12 +352,10 @@ function DashboardSection({
 						Dashboard
 						<button
 							onClick={handleDashboardRefresh}
-							disabled={refreshing}
-							className={`ml-2 px-2 py-1 rounded text-xs border border-blue-200 bg-white hover:bg-blue-50 transition-colors flex items-center gap-1 ${refreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
+							className={`ml-2 px-2 py-1 rounded text-xs border border-blue-200 bg-white hover:bg-blue-50 transition-colors flex items-center gap-1`}
 							title="Atualizar informações do dashboard"
 						>
-							{refreshing ? <Loader2 size={16} className="animate-spin" /> : null}
-							{refreshing ? 'Atualizando...' : 'Atualizar'}
+							Atualizar
 						</button>
 					</h2>
 					<p className="text-gray-600">Visão geral do sistema bibliotecário</p>
