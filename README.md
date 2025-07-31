@@ -2,7 +2,7 @@
 
 LumiBook é uma aplicação web para sistemas de biblioteca, permitindo buscar, visualizar detalhes e gerenciar obras do acervo.
 
-Projeto proposto e desenvolvido como parte avaliativa em conjunto no âmbito das disciplina de Análise e Levantamento de Requisitos, Desenvolvimento Back-End, Desenvolvimento Front-End e Manipulação de Banco de Dados (5ºperíodo/Semestre 2025/Bacharelado em Engenharia de Software) .
+Projeto proposto e desenvolvido como parte avaliativa em conjunto no âmbito das disciplinas de Análise e Levantamento de Requisitos, Desenvolvimento Back-End, Desenvolvimento Front-End e Manipulação de Banco de Dados (5ºperíodo/Semestre 2025/Bacharelado em Engenharia de Software) .
 
 ## Funcionalidades
 
