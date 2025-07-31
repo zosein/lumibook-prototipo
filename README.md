@@ -1,6 +1,8 @@
 # LumiBook - Sistema de Biblioteca Digital
 
-LumiBook é uma aplicação web para sistemas de biblioteca, permitindo buscar, visualizar detalhes e gerenciar obras do acervo (outras funcionalidades ainda em desenvolvimento).
+LumiBook é uma aplicação web para sistemas de biblioteca, permitindo buscar, visualizar detalhes e gerenciar obras do acervo.
+
+Projeto proposto e desenvolvido como parte avaliativa em conjunto no âmbito das disciplina de Análise e Levantamento de Requisitos, Desenvolvimento Back-End, Desenvolvimento Front-End e Manipulação de Banco de Dados (5ºperíodo/Semestre 2025/Bacharelado em Engenharia de Software) .
 
 ## Funcionalidades
 
@@ -34,7 +36,7 @@ Clone o repositório e instale as dependências:
 O aplicativo estará disponível em http://localhost:3000
 
 ### Estrutura do Projeto
-
+```
 src/
 ├── components/
 │ ├── Header.jsx # Cabeçalho da aplicação
@@ -50,6 +52,7 @@ src/
 │ ├── SearchResultsPage.jsx # Página de resultados de pesquisa
 │ └── DetailsPage.jsx # Página de detalhes do livro
 └── App.jsx # Componente principal da aplicação
+```
 
 ## Licença
 
